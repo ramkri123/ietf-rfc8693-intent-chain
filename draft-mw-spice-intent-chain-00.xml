@@ -1,0 +1,1620 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
+<rfc version="3" ipr="trust200902" docName="draft-mw-spice-intent-chain-00" submissionType="IETF" category="info" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true">
+
+<front>
+<title abbrev="SPICE-INTENT-CHAIN">Cryptographically Verifiable Intent Chain for AI Agent Content Provenance</title><seriesInfo value="draft-mw-spice-intent-chain-00" stream="IETF" status="informational" name="Internet-Draft"></seriesInfo>
+<author initials="R." surname="Krishnan" fullname="Ram Krishnan"><organization>JPMorgan Chase &amp; Co</organization><address><postal><street></street>
+</postal><email>ramkri123@gmail.com</email>
+</address></author><author initials="A." surname="Prasad" fullname="A Prasad"><organization>Oracle</organization><address><postal><street></street>
+</postal><email>a.prasad@oracle.com</email>
+</address></author><author initials="D." surname="Lopez" fullname="Diego R. Lopez"><organization>Telefonica</organization><address><postal><street></street>
+</postal><email>diego.r.lopez@telefonica.com</email>
+</address></author><author initials="S." surname="Addepalli" fullname="Srinivasa Addepalli"><organization>Aryaka</organization><address><postal><street></street>
+</postal><email>srinivasa.addepalli@aryaka.com</email>
+</address></author><date/>
+<area>Security</area>
+<workgroup>SPICE</workgroup>
+<keyword>intent chain</keyword>
+<keyword>spice</keyword>
+<keyword>content provenance</keyword>
+<keyword>AI agents</keyword>
+<keyword>merkle tree</keyword>
+<keyword>agentic workflows</keyword>
+
+<abstract>
+<t>This document defines the <tt>intent_chain</tt> claim as a companion to the <tt>actor_chain</tt> claim defined in [[!I-D.draft-mw-spice-actor-chain]]. While the actor chain addresses delegation provenance (WHO delegated to whom), the intent chain addresses content provenance (WHAT was produced and HOW it was transformed).</t>
+<t>In AI agent workflows, content flows through multiple processing stages including AI agents and filters. The intent chain provides a cryptographically verifiable, tamper-evident record of this content journey. The full intent chain is stored as ordered logs, with only the merkle root included in the OAuth token for efficiency.</t>
+<t>Together, the actor chain and intent chain provide complete governance for autonomous AI agent systems, addressing Spoofing, Tampering, Repudiation, and Elevation of Privilege threats in the STRIDE threat model.</t>
+</abstract>
+
+</front>
+
+<middle>
+
+<section anchor="introduction"><name>Introduction</name>
+
+<section anchor="the-problem-content-provenance-gap"><name>The Problem: Content Provenance Gap</name>
+<t>The Actor Chain extension to <eref target="defined in [[!I-D.draft-mw-spice-actor-chain]]">[RFC8693]</eref> addresses the Delegation Auditability Gap by providing cryptographic proof of the actual delegation path between AI agents. However, it does not address a complementary gap: <strong>Content Provenance</strong>.</t>
+<t>In AI agent workflows, content flows through multiple processing stages:</t>
+
+<artwork><![CDATA[Agent A -> Filter -> Filter -> Agent B -> Filter -> Agent C -> Tool
+]]></artwork>
+<t>Each stage may transform the content. AI agent outputs are inherently non-deterministic and cannot be trusted without validation. Filters (both AI-based and rule-based) transform this content before it reaches the next stage.</t>
+<t>For complete governance, systems require proof of:</t>
+
+<ul spacing="compact">
+<li><strong>What</strong> each AI agent originally produced (raw output)</li>
+<li><strong>How</strong> each filter transformed the content</li>
+<li><strong>Whether</strong> transformations were deterministic (reproducible) or non-deterministic (AI-based)</li>
+<li><strong>The complete chain</strong> of content transformations within a session</li>
+</ul>
+<t>Without this proof, the content transformation history cannot be reconstructed for audit or dispute resolution. Consider the following repudiation scenario:</t>
+
+<ol spacing="compact">
+<li>Agent A produces a response containing a harmful instruction (e.g., caused by prompt injection).</li>
+<li>The response passes through an AI guardrail filter, which fails to catch the harmful content.</li>
+<li>Agent B acts on the harmful instruction, causing damage.</li>
+<li>During investigation, Agent A's operator claims &quot;Agent A never produced that output — it must have been injected by a downstream filter.&quot;</li>
+</ol>
+<t>Without cryptographic proof binding Agent A's identity to its specific output hash, this claim cannot be disproven. The intent chain solves this by requiring every agent to sign <tt>input_hash</tt> + <tt>output_hash</tt> via <tt>intent_sig</tt>, creating non-repudiable evidence of what each agent received and produced.</t>
+</section>
+
+<section anchor="relationship-to-actor-chain-and-inference-chain"><name>Relationship to Actor Chain and Inference Chain</name>
+<t>This specification is part of a three-axis &quot;Truth Stack&quot; for AI agent governance:</t>
+<table>
+<thead>
+<tr>
+<th align="left">Specification</th>
+<th align="left">Axis</th>
+<th align="left">Question Answered</th>
+<th align="left">STRIDE Coverage</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><strong>Actor Chain</strong> ([[!I-D.draft-mw-spice-actor-chain]])</td>
+<td align="left">Identity</td>
+<td align="left">WHO delegated to whom?</td>
+<td align="left">Spoofing, Repudiation, Elevation of Privilege</td>
+</tr>
+
+<tr>
+<td align="left"><strong>Intent Chain</strong> (this document)</td>
+<td align="left">Content</td>
+<td align="left">WHAT was produced and transformed?</td>
+<td align="left">Repudiation, Tampering</td>
+</tr>
+
+<tr>
+<td align="left"><strong>Inference Chain</strong> ([[!I-D.draft-mw-spice-inference-chain]])</td>
+<td align="left">Computation</td>
+<td align="left">HOW was the output computed?</td>
+<td align="left">Spoofing (computational), Tampering (model)</td>
+</tr>
+</tbody>
+</table><table>
+<thead>
+<tr>
+<th align="left">Chain</th>
+<th align="left">Plane</th>
+<th align="left">Token Content</th>
+<th align="left">Full Chain</th>
+<th align="left">Primary Consumer</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><strong>Actor</strong></td>
+<td align="left">Data Plane</td>
+<td align="left">Full chain inline</td>
+<td align="left">In token</td>
+<td align="left">Every Relying Party (real-time authorization)</td>
+</tr>
+
+<tr>
+<td align="left"><strong>Intent</strong></td>
+<td align="left">Audit Plane</td>
+<td align="left">Merkle root only</td>
+<td align="left">External registry</td>
+<td align="left">Audit systems, forensic investigators</td>
+</tr>
+
+<tr>
+<td align="left"><strong>Inference</strong></td>
+<td align="left">Audit Plane</td>
+<td align="left">Merkle root only</td>
+<td align="left">External registry</td>
+<td align="left">Auditors, compliance systems</td>
+</tr>
+</tbody>
+</table><t>The three chains are independent and composable:</t>
+
+<ul spacing="compact">
+<li><strong>Actor Chain Only</strong>: Real-time authorization, access control</li>
+<li><strong>Intent Chain Only</strong>: Content audit, debugging, filter validation</li>
+<li><strong>Actor + Intent</strong>: Full content governance, dispute resolution, regulatory compliance</li>
+<li><strong>All Three</strong>: Complete &quot;Truth Stack&quot; — identity, content, and computational provenance</li>
+</ul>
+</section>
+
+<section anchor="design-goals"><name>Design Goals</name>
+<t>The intent chain is designed with the following goals:</t>
+
+<ol spacing="compact">
+<li><strong>Content Provenance</strong>: Cryptographic proof of what each agent produced</li>
+<li><strong>Transformation Tracking</strong>: Record of how filters modified content</li>
+<li><strong>Tamper Evidence</strong>: Merkle tree structure prevents undetected modification</li>
+<li><strong>Efficiency</strong>: Only merkle root in token; full chain in logs</li>
+<li><strong>Scalability</strong>: Append-only logs scale horizontally</li>
+<li><strong>Modularity</strong>: Usable independently or with actor chain</li>
+<li><strong>Standards Alignment</strong>: Compatible with OAuth 2.0, JWT, SPIFFE</li>
+</ol>
+</section>
+</section>
+
+<section anchor="terminology"><name>Terminology</name>
+<t>The key words &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;, &quot;SHALL&quot;, &quot;SHALL NOT&quot;, &quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;NOT RECOMMENDED&quot;, &quot;MAY&quot;, and &quot;OPTIONAL&quot; in this document are to be interpreted as described in BCP 14 [[RFC2119]] [[RFC8174]] when, and only when, they appear in all capitals, as shown here.</t>
+
+<dl spacing="compact">
+<dt>Intent Chain:</dt>
+<dd>An ordered sequence of Intent Chain Entries representing the complete content journey from originating agent through filters to final output within a session.</dd>
+<dt>Intent Chain Entry:</dt>
+<dd>A record identifying a single content transformation, including the agent identity, entry type, content hashes, and cryptographic signature.</dd>
+<dt>AI Agent:</dt>
+<dd>An autonomous decision-maker that produces content and can delegate authority. AI agents appear in both the actor chain (for delegation) and the intent chain (for output provenance).</dd>
+<dt>Non-Deterministic Filter:</dt>
+<dd>A processor (typically AI-based) whose output cannot be reproduced from its input. Examples include AI guardrails, LLM-based content rewriters, and semantic classifiers. Both input and output MUST be signed.</dd>
+<dt>Deterministic Filter:</dt>
+<dd>A processor whose output can be reproduced from its input and rules. Examples include schema validators, regex sanitizers, and bounds checkers. Output can be re-derived for verification.</dd>
+<dt>Intent Root:</dt>
+<dd>The merkle root hash of the complete intent chain, included in the OAuth token.</dd>
+<dt>Intent Registry:</dt>
+<dd>An append-only ordered log storing the full intent chain entries, partitioned by session.</dd>
+<dt>Actor Registry:</dt>
+<dd>A database storing mutable state including capabilities and revocation status.</dd>
+</dl>
+</section>
+
+<section anchor="architecture-overview"><name>Architecture Overview</name>
+
+<section anchor="three-layer-governance-model"><name>Three-Layer Governance Model</name>
+<t>The governance model consists of three layers:</t>
+
+<ul spacing="compact">
+<li><strong>Session</strong>: Root of trust and lifecycle management. Initiated by human approval or system authorization. Contains subject, expiry, and approval reference.</li>
+<li><strong>Actor Chain (WHO)</strong>: Contains AI agents only. Full chain stored in token. Addresses Spoofing, Repudiation, and Elevation of Privilege. Defined in [[!I-D.draft-mw-spice-actor-chain]].</li>
+<li><strong>Intent Chain (WHAT)</strong>: Contains AI agents and filters. Full chain stored in ordered logs; merkle root in token. Addresses Repudiation and Tampering. Defined in this document.</li>
+</ul>
+</section>
+
+<section anchor="session-as-root-of-trust"><name>Session as Root of Trust</name>
+<t>Every governance chain traces back to a session. The session provides:</t>
+
+<ul spacing="compact">
+<li><strong>Origin</strong>: Who or what initiated the workflow</li>
+<li><strong>Lifecycle</strong>: When the session expires</li>
+<li><strong>Revocation Point</strong>: Revoking session invalidates all activity</li>
+<li><strong>Audit Boundary</strong>: Session defines the unit of audit</li>
+</ul>
+<t>Session information is captured in standard OAuth token claims:</t>
+<table>
+<thead>
+<tr>
+<th align="left">Claim</th>
+<th align="left">Purpose</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><tt>sub</tt></td>
+<td align="left">Session subject (human or system initiator)</td>
+</tr>
+
+<tr>
+<td align="left"><tt>jti</tt></td>
+<td align="left">Token identifier (unique per token exchange)</td>
+</tr>
+
+<tr>
+<td align="left"><tt>iat</tt></td>
+<td align="left">Session start time</td>
+</tr>
+
+<tr>
+<td align="left"><tt>exp</tt></td>
+<td align="left">Session expiry time</td>
+</tr>
+</tbody>
+</table></section>
+
+<section anchor="actor-chain-who-reference"><name>Actor Chain (WHO) - Reference</name>
+<t>The actor chain is defined in [[!I-D.draft-mw-spice-actor-chain]]. Key properties:</t>
+
+<ul spacing="compact">
+<li>Contains AI agents only (autonomous decision-makers)</li>
+<li>Tracks delegation of authority</li>
+<li>Full chain included in token</li>
+<li>Addresses Spoofing, Repudiation, Elevation of Privilege</li>
+</ul>
+<t>This document assumes familiarity with the actor chain specification.</t>
+</section>
+
+<section anchor="intent-chain-what-this-document"><name>Intent Chain (WHAT) - This Document</name>
+<t>The intent chain is defined in this document. Key properties:</t>
+
+<ul spacing="compact">
+<li>Contains AI agents AND filters</li>
+<li>Tracks content production and transformation</li>
+<li>Merkle root in token; full chain in ordered logs</li>
+<li>Addresses Repudiation and Tampering</li>
+</ul>
+</section>
+
+<section anchor="stride-threat-model-coverage"><name>STRIDE Threat Model Coverage</name>
+<table>
+<thead>
+<tr>
+<th align="left">Threat</th>
+<th align="left">Mitigation</th>
+<th align="left">Component</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><strong>S</strong> - Spoofing</td>
+<td align="left">Cryptographic identity, signed chain entries</td>
+<td align="left">Actor Chain</td>
+</tr>
+
+<tr>
+<td align="left"><strong>T</strong> - Tampering</td>
+<td align="left">Merkle tree integrity, append-only logs</td>
+<td align="left">Intent Chain</td>
+</tr>
+
+<tr>
+<td align="left"><strong>R</strong> - Repudiation</td>
+<td align="left">Signed delegation (Actor) + Signed outputs (Intent)</td>
+<td align="left">Both</td>
+</tr>
+
+<tr>
+<td align="left"><strong>I</strong> - Information Disclosure</td>
+<td align="left">Selective disclosure (SD-JWT)</td>
+<td align="left">Both (optional)</td>
+</tr>
+
+<tr>
+<td align="left"><strong>D</strong> - Denial of Service</td>
+<td align="left">Session expiry, rate limits</td>
+<td align="left">Session + Infrastructure</td>
+</tr>
+
+<tr>
+<td align="left"><strong>E</strong> - Elevation of Privilege</td>
+<td align="left">Scope attenuation, policy enforcement</td>
+<td align="left">Actor Chain</td>
+</tr>
+</tbody>
+</table></section>
+</section>
+
+<section anchor="intent-chain-definition"><name>Intent Chain Definition</name>
+
+<section anchor="entry-types"><name>Entry Types</name>
+<t>The intent chain contains two types of entries:</t>
+<table>
+<thead>
+<tr>
+<th align="left">Entry Type</th>
+<th align="left">Determinism</th>
+<th align="left">Signed Fields</th>
+<th align="left">Type-Specific Fields</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left">Non-Deterministic (AI agent output, AI-based filter)</td>
+<td align="left">Non-deterministic</td>
+<td align="left"><tt>input_hash</tt> + <tt>output_hash</tt></td>
+<td align="left"><tt>model_info</tt> (optional)</td>
+</tr>
+
+<tr>
+<td align="left">Deterministic (rule-based filter)</td>
+<td align="left">Deterministic</td>
+<td align="left"><tt>input_hash</tt> + <tt>output_hash</tt></td>
+<td align="left"><tt>rule_id</tt>, <tt>rule_hash</tt></td>
+</tr>
+</tbody>
+</table><t>All entry types REQUIRE both <tt>input_hash</tt> and <tt>output_hash</tt>. This uniform structure ensures that every consecutive pair satisfies <tt>entry[i].output_hash == entry[i+1].input_hash</tt>, creating a complete content provenance chain. The cost is approximately 40 bytes per entry in the ordered logs — not in the token itself, which carries only the merkle root regardless of entry count.</t>
+</section>
+
+<section anchor="non-deterministic-entries"><name>Non-Deterministic Entries</name>
+<t>Non-deterministic entries record outputs from AI agents or AI-based filters whose output cannot be reproduced from the input alone.</t>
+<t><strong>Examples</strong>:</t>
+
+<ul spacing="compact">
+<li>AI agent outputs (orchestrator, planner, tool agent)</li>
+<li>AI guardrails (Llama Guard, NeMo Guardrails)</li>
+<li>LLM-based content rewriters</li>
+<li>Semantic classifiers</li>
+</ul>
+<t><strong>Properties</strong>:</t>
+
+<ul spacing="compact">
+<li>Sub is an AI agent or AI-based filter (agents also appear in actor chain)</li>
+<li>Output is non-deterministic (cannot be reproduced)</li>
+<li><tt>input_hash</tt> and <tt>output_hash</tt> MUST be recorded and signed</li>
+</ul>
+<t><strong>Agent Output Example</strong>:</t>
+
+<sourcecode type="json"><![CDATA[{
+  "type": "non_deterministic",
+  "sub": "spiffe://example.com/agent/orchestrator",
+  "input_hash": "sha256:fff000...",
+  "output_hash": "sha256:abc123...",
+  "iat": 1700000010,
+  "intent_digest": "sha256:...",
+  "intent_sig": "eyJhbGci..."
+}
+]]></sourcecode>
+<t><strong>AI Filter Example</strong>:</t>
+
+<sourcecode type="json"><![CDATA[{
+  "type": "non_deterministic",
+  "sub": "spiffe://example.com/filter/ai-guardrail",
+  "filter_version": "v2.1",
+  "input_hash": "sha256:abc123...",
+  "output_hash": "sha256:def456...",
+  "model_info": {
+    "model": "llama-guard-3",
+    "categories": ["violence", "pii", "prompt_injection"]
+  },
+  "iat": 1700000015,
+  "intent_digest": "sha256:...",
+  "intent_sig": "eyJhbGci..."
+}
+]]></sourcecode>
+</section>
+
+<section anchor="deterministic-entries"><name>Deterministic Entries</name>
+<t>Deterministic filter entries record transformations by rule-based filters whose output can be reproduced from the input and rules.</t>
+<t><strong>Examples</strong>:</t>
+
+<ul spacing="compact">
+<li>Schema validators (JSON Schema)</li>
+<li>Regex sanitizers (XSS removal)</li>
+<li>Bounds checkers (amount limits)</li>
+<li>PII redactors (pattern-based)</li>
+</ul>
+<t><strong>Properties</strong>:</t>
+
+<ul spacing="compact">
+<li>Sub is a rule-based filter</li>
+<li>Output CAN be reproduced from input + rules</li>
+<li><tt>input_hash</tt> and <tt>output_hash</tt> MUST be recorded and signed</li>
+<li><tt>rule_id</tt> and <tt>rule_hash</tt> are type-specific signed fields in the log entry, enabling independent re-verification</li>
+<li>Output can be re-derived by re-applying the rule to the input</li>
+</ul>
+<t><strong>Structure</strong>:</t>
+
+<sourcecode type="json"><![CDATA[{
+  "type": "deterministic",
+  "sub": "spiffe://example.com/filter/schema-validator",
+  "filter_version": "v1.0",
+  "input_hash": "sha256:def456...",
+  "output_hash": "sha256:ghi789...",
+  "rule_id": "ticket-schema-v2",
+  "rule_hash": "sha256:rrr...",
+  "transform_applied": {
+    "fields_validated": ["title", "priority", "amount"],
+    "fields_modified": ["priority"],
+    "modification": {
+      "priority": {
+        "from": "critical",
+        "to": "medium",
+        "reason": "bounds_exceeded"
+      }
+    }
+  },
+  "reproducible": true,
+  "iat": 1700000016,
+  "intent_digest": "sha256:...",
+  "intent_sig": "eyJhbGci..."
+}
+]]></sourcecode>
+</section>
+
+<section anchor="entry-structure"><name>Entry Structure</name>
+<t>All intent chain entries share common fields:</t>
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Required</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><tt>type</tt></td>
+<td align="left">string</td>
+<td align="left">REQUIRED</td>
+<td align="left">Entry type: <tt>non_deterministic</tt>, <tt>deterministic</tt></td>
+</tr>
+
+<tr>
+<td align="left"><tt>sub</tt></td>
+<td align="left">string</td>
+<td align="left">REQUIRED</td>
+<td align="left">SPIFFE ID of the agent or filter</td>
+</tr>
+
+<tr>
+<td align="left"><tt>input_hash</tt></td>
+<td align="left">string</td>
+<td align="left">REQUIRED</td>
+<td align="left">SHA-256 hash of the input content</td>
+</tr>
+
+<tr>
+<td align="left"><tt>output_hash</tt></td>
+<td align="left">string</td>
+<td align="left">REQUIRED</td>
+<td align="left">SHA-256 hash of the output content</td>
+</tr>
+
+<tr>
+<td align="left"><tt>iat</tt></td>
+<td align="left">number</td>
+<td align="left">REQUIRED</td>
+<td align="left">Timestamp when entry was created</td>
+</tr>
+
+<tr>
+<td align="left"><tt>intent_digest</tt></td>
+<td align="left">string</td>
+<td align="left">REQUIRED</td>
+<td align="left">Hash of the canonically serialized entry for merkle leaf computation</td>
+</tr>
+
+<tr>
+<td align="left"><tt>intent_sig</tt></td>
+<td align="left">string</td>
+<td align="left">REQUIRED</td>
+<td align="left">Signature over <tt>intent_digest</tt> using the agent's or filter's private key</td>
+</tr>
+</tbody>
+</table>
+<section anchor="intent-digest-computation"><name><tt>intent_digest</tt> Computation</name>
+<t>The <tt>intent_digest</tt> field is computed as the SHA-256 hash of the canonically serialized entry, excluding the <tt>intent_digest</tt> and <tt>intent_sig</tt> fields themselves. This hash serves as the leaf node in the merkle tree.</t>
+<t>For an entry E with fields {type, sub, input_hash, output_hash, iat, ...}:</t>
+
+<artwork><![CDATA[intent_digest = SHA-256(canonical_json(E \ {intent_digest, intent_sig}))
+]]></artwork>
+<t>Where <tt>canonical_json</tt> follows JSON Canonicalization Scheme <eref target="RFC 8785">[JCS]</eref> to ensure deterministic serialization.</t>
+<t>The <tt>intent_sig</tt> (when REQUIRED) is computed over the <tt>intent_digest</tt> value using the agent's private key:</t>
+
+<artwork><![CDATA[intent_sig = Sign(agent_key, intent_digest)
+]]></artwork>
+<t>This two-step process ensures that: (a) the digest is stable and independent of signature ordering, and (b) the signature covers all content-relevant fields of the entry.</t>
+<t>Additional fields by entry type:</t>
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="left">Entry Types</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><tt>filter_version</tt></td>
+<td align="left">Filters</td>
+<td align="left">Version of filter</td>
+</tr>
+
+<tr>
+<td align="left"><tt>rule_id</tt></td>
+<td align="left">Deterministic</td>
+<td align="left">Identifier of rule applied</td>
+</tr>
+
+<tr>
+<td align="left"><tt>rule_hash</tt></td>
+<td align="left">Deterministic</td>
+<td align="left">Hash of rule definition</td>
+</tr>
+
+<tr>
+<td align="left"><tt>model_info</tt></td>
+<td align="left">Non-deterministic</td>
+<td align="left">AI model information</td>
+</tr>
+
+<tr>
+<td align="left"><tt>transform_applied</tt></td>
+<td align="left">Filters</td>
+<td align="left">Details of transformation</td>
+</tr>
+
+<tr>
+<td align="left"><tt>reproducible</tt></td>
+<td align="left">Deterministic</td>
+<td align="left">Boolean indicating reproducibility</td>
+</tr>
+</tbody>
+</table></section>
+</section>
+</section>
+
+<section anchor="storage-architecture"><name>Storage Architecture</name>
+
+<section anchor="intent-registry-ordered-logs"><name>Intent Registry (Ordered Logs)</name>
+<t>The intent registry stores immutable intent chain entries as ordered logs.</t>
+<t><strong>Contents</strong>:</t>
+
+<ul spacing="compact">
+<li>Non-deterministic entries (AI agent outputs, AI-based filters)</li>
+<li>Deterministic entries (rule-based filters)</li>
+</ul>
+<blockquote><t>Intent registry entries MUST NOT contain OAuth tokens, bearer credentials, or signing keys. Entries contain only content hashes, metadata, agent identities, and entry-level signatures. The token references the registry via the <tt>intent_registry</tt> claim; the registry MUST NOT store or reference the token itself.</t>
+</blockquote><t><strong>Properties</strong>:</t>
+
+<ul spacing="compact">
+<li>Append-only (immutable)</li>
+<li>Ordered by offset within session</li>
+<li>Partitioned by <tt>session.session_id</tt></li>
+<li>Eventual consistency acceptable</li>
+</ul>
+<t>Implementations SHOULD use an append-only log that supports partitioned, ordered retrieval by the token's <tt>session.session_id</tt> claim and provides tamper-evident guarantees (e.g., via hash chaining or inclusion proofs).</t>
+<t><strong>Log Structure</strong>:</t>
+
+<sourcecode type="json"><![CDATA[{
+  "session_id": "sess-uuid-12345",
+  "offset": 0,
+  "entry": {
+    "type": "non_deterministic",
+    "sub": "spiffe://example.com/agent/A",
+    "input_hash": "sha256:prompt...",
+    "output_hash": "sha256:abc...",
+    "iat": 1700000010,
+    "intent_digest": "sha256:...",
+    "intent_sig": "eyJ..."
+  }
+}
+]]></sourcecode>
+
+<section anchor="relationship-between-session-id-and-jti"><name>Relationship Between <tt>session_id</tt> and <tt>jti</tt></name>
+<t>The <tt>session_id</tt> is a stable identifier for the end-user interaction. It remains constant as the delegation chain grows through multiple token exchanges, each of which produces a new token with a distinct <tt>jti</tt>:</t>
+
+<artwork><![CDATA[User session: sess-uuid-12345
+
+  Token Exchange 1 (jti: "tok-aaa")
+    User → Agent A
+    Intent entries: offset 0 (Agent A output)
+
+  Token Exchange 2 (jti: "tok-bbb")
+    Agent A → Agent B
+    Intent entries: offset 1 (filter), offset 2 (Agent B output)
+
+  Token Exchange 3 (jti: "tok-ccc")
+    Agent B → Agent C
+    Intent entries: offset 3 (filter), offset 4 (Agent C output)
+]]></artwork>
+<t>All intent chain entries share <tt>session_id: &quot;sess-uuid-12345&quot;</tt> regardless of which token exchange produced them. The <tt>session_id</tt> is carried forward during each token exchange as part of the <tt>session</tt> claim. During forensic verification, the investigator retrieves all entries for a <tt>session_id</tt> to reconstruct the complete content journey.</t>
+</section>
+</section>
+
+<section anchor="merkle-tree-construction"><name>Merkle Tree Construction</name>
+<t>The merkle tree is constructed from ordered log entries. Leaf nodes are the SHA-256 hashes of canonically serialized intent chain entries. Internal nodes are the SHA-256 hash of the concatenation of their two child hashes. When a level has an odd number of nodes, the last node is promoted to the next level.</t>
+<t>See Appendix A for a visual depiction and reference construction algorithm.</t>
+</section>
+
+<section anchor="merkle-root-in-token"><name>Merkle Root in Token</name>
+<t>Only the merkle root is included in the OAuth token:</t>
+
+<sourcecode type="json"><![CDATA[{
+  "intent_root": "sha256:abc123def456...",
+  "intent_alg": "sha256",
+  "intent_registry": "https://intent-log.example.com"
+}
+]]></sourcecode>
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Required</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><tt>intent_root</tt></td>
+<td align="left">string</td>
+<td align="left">REQUIRED</td>
+<td align="left">Merkle root hash of intent chain</td>
+</tr>
+
+<tr>
+<td align="left"><tt>intent_alg</tt></td>
+<td align="left">string</td>
+<td align="left">OPTIONAL</td>
+<td align="left">Hash algorithm (default: sha256)</td>
+</tr>
+
+<tr>
+<td align="left"><tt>intent_registry</tt></td>
+<td align="left">string</td>
+<td align="left">REQUIRED</td>
+<td align="left">URI of intent registry for proof retrieval</td>
+</tr>
+</tbody>
+</table></section>
+</section>
+
+<section anchor="token-structure"><name>Token Structure</name>
+
+<section anchor="combined-token-format"><name>Combined Token Format</name>
+<t>The complete token combines session, actor chain, and intent chain:</t>
+
+<sourcecode type="json"><![CDATA[{
+  "iss": "https://auth.example.com",
+  "sub": "user-alice",
+  "aud": "https://api.example.com",
+  "jti": "tok-aaa-12345",
+  "iat": 1700000000,
+  "exp": 1700003600,
+
+  "session": {
+    "session_id": "sess-uuid-12345",
+    "type": "human_initiated",
+    "initiator": "user-alice",
+    "approval_ref": "approval-uuid-789",
+    "max_chain_depth": 5
+  },
+
+  "actor_chain": [
+    {
+      "sub": "spiffe://example.com/agent/orchestrator",
+      "iss": "https://auth.example.com",
+      "iat": 1700000010,
+      "scope": "ticket:*",
+      "chain_digest": "sha256:aaa...",
+      "chain_sig": "eyJhbGciOiJFUzI1NiIs..."
+    },
+    {
+      "sub": "spiffe://example.com/agent/support",
+      "iss": "https://auth.example.com",
+      "iat": 1700000030,
+      "scope": "ticket:create",
+      "chain_digest": "sha256:bbb...",
+      "chain_sig": "eyJhbGciOiJFUzI1NiIs..."
+    }
+  ],
+
+  "intent_root": "sha256:abc123def456789...",
+  "intent_registry":
+    "https://intent-log.example.com/sessions/sess-uuid-12345"
+}
+]]></sourcecode>
+</section>
+
+<section anchor="claim-definitions"><name>Claim Definitions</name>
+
+<section anchor="session-claims"><name>Session Claims</name>
+<table>
+<thead>
+<tr>
+<th align="left">Claim</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><tt>session.session_id</tt></td>
+<td align="left">string</td>
+<td align="left">Stable identifier for the end-user interaction, assigned by the AS on first token issuance and carried forward during subsequent token exchanges</td>
+</tr>
+
+<tr>
+<td align="left"><tt>session.type</tt></td>
+<td align="left">string</td>
+<td align="left">Session type: <tt>human_initiated</tt>, <tt>system_initiated</tt>, <tt>scheduled</tt></td>
+</tr>
+
+<tr>
+<td align="left"><tt>session.initiator</tt></td>
+<td align="left">string</td>
+<td align="left">Identity of session initiator</td>
+</tr>
+
+<tr>
+<td align="left"><tt>session.approval_ref</tt></td>
+<td align="left">string</td>
+<td align="left">Reference to approval record</td>
+</tr>
+
+<tr>
+<td align="left"><tt>session.max_chain_depth</tt></td>
+<td align="left">number</td>
+<td align="left">Maximum allowed delegation depth</td>
+</tr>
+</tbody>
+</table></section>
+
+<section anchor="actor-chain-claims"><name>Actor Chain Claims</name>
+<t>Defined in [[!I-D.draft-mw-spice-actor-chain]].</t>
+</section>
+
+<section anchor="intent-chain-claims"><name>Intent Chain Claims</name>
+<table>
+<thead>
+<tr>
+<th align="left">Claim</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><tt>intent_root</tt></td>
+<td align="left">string</td>
+<td align="left">Merkle root hash of intent chain</td>
+</tr>
+
+<tr>
+<td align="left"><tt>intent_alg</tt></td>
+<td align="left">string</td>
+<td align="left">Hash algorithm used (default: sha256)</td>
+</tr>
+
+<tr>
+<td align="left"><tt>intent_registry</tt></td>
+<td align="left">string</td>
+<td align="left">URI for retrieving full chain or proofs (REQUIRED)</td>
+</tr>
+</tbody>
+</table></section>
+</section>
+
+<section anchor="examples"><name>Examples</name>
+
+<section anchor="minimal-token-actor-chain-only"><name>Minimal Token (Actor Chain Only)</name>
+
+<sourcecode type="json"><![CDATA[{
+  "iss": "https://auth.example.com",
+  "sub": "user-alice",
+  "jti": "tok-bbb-12345",
+  "iat": 1700000000,
+  "exp": 1700003600,
+
+  "actor_chain": [
+    {
+      "sub": "spiffe://example.com/agent/A",
+      "iat": 1700000010,
+      "chain_sig": "..."
+    }
+  ]
+}
+]]></sourcecode>
+</section>
+
+<section anchor="minimal-token-intent-chain-only"><name>Minimal Token (Intent Chain Only)</name>
+
+<sourcecode type="json"><![CDATA[{
+  "iss": "https://auth.example.com",
+  "sub": "user-alice",
+  "jti": "tok-ccc-12345",
+  "iat": 1700000000,
+  "exp": 1700003600,
+
+  "intent_root": "sha256:abc123...",
+  "intent_registry":
+    "https://intent-log.example.com/sessions/sess-uuid-12345"
+}
+]]></sourcecode>
+</section>
+
+<section anchor="full-token-both-chains"><name>Full Token (Both Chains)</name>
+<t>See <xref target="combined-token-format"></xref>.</t>
+</section>
+</section>
+</section>
+
+<section anchor="verification-procedures"><name>Verification Procedures</name>
+
+<section anchor="request-time-policy-checks"><name>Request-Time Policy Checks</name>
+<t>At request time, the Relying Party performs lightweight checks on the intent chain metadata in the token. Full chain verification is unnecessary on the hot path because:</t>
+
+<ul spacing="compact">
+<li>The content has already been produced; verifying signatures cannot undo it.</li>
+<li>The Relying Party has the token, not the raw content, so it cannot cross-check content hashes.</li>
+<li>O(n) signature verification per request adds latency without improving authorization decisions.</li>
+</ul>
+<t>The Relying Party SHOULD:</t>
+
+<ol spacing="compact">
+<li>Verify the JWT outer signature (covers <tt>intent_root</tt> as a signed claim).</li>
+<li>Check that <tt>intent_root</tt> and <tt>intent_registry</tt> are present (policy: &quot;intent chain coverage required&quot;).</li>
+<li>Apply policy rules against intent chain entry types fetched from the registry (e.g., &quot;must include at least one <tt>deterministic</tt> entry&quot;).</li>
+</ol>
+<t>The tiered verification table reflects the appropriate level of intent chain checking based on risk:</t>
+<table>
+<thead>
+<tr>
+<th align="left">Risk Level</th>
+<th align="left">Actor Chain</th>
+<th align="left">Intent Chain</th>
+<th align="left">Use Case</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left">Low</td>
+<td align="left">Verify JWT signature</td>
+<td align="left">Check <tt>intent_root</tt> present</td>
+<td align="left">Read operations</td>
+</tr>
+
+<tr>
+<td align="left">Medium</td>
+<td align="left">Verify JWT signature</td>
+<td align="left">Async policy check on entry types</td>
+<td align="left">Create/update</td>
+</tr>
+
+<tr>
+<td align="left">High</td>
+<td align="left">Verify JWT signature + actor sigs</td>
+<td align="left">Full forensic verification</td>
+<td align="left">Delete, transfer, admin</td>
+</tr>
+</tbody>
+</table></section>
+
+<section anchor="forensic-verification"><name>Forensic Verification</name>
+<t>The primary value of the intent chain is post-hoc troubleshooting and dispute resolution. When an incident occurs, an auditor or investigator performs full chain verification to determine which agent caused the problem.</t>
+
+<section anchor="token-archival"><name>Token Archival</name>
+<t>Forensic verification requires two inputs: the original JWT (containing <tt>intent_root</tt>) and the intent chain entries from the registry. The intent registry stores chain entries but does not store the token itself.</t>
+<t>To enable forensic analysis, tokens SHOULD be archived by one or more of the following:</t>
+
+<ul spacing="compact">
+<li><strong>Relying Parties</strong>: Archive tokens at the point of presentation (most common).</li>
+<li><strong>Audit services</strong>: A dedicated audit service receives a copy of each token for compliance purposes.</li>
+<li><strong>Authorization Servers</strong>: The AS MAY maintain a log of issued tokens indexed by <tt>jti</tt>.</li>
+</ul>
+<t>Archived tokens MUST be stored securely and access-controlled, as they contain identity and delegation information.</t>
+</section>
+
+<section anchor="full-chain-verification"><name>Full Chain Verification</name>
+<t>To perform a complete forensic investigation:</t>
+
+<ol spacing="compact">
+<li><strong>Retrieve inputs</strong>: Extract <tt>intent_root</tt> and <tt>intent_registry</tt> from the archived token. Fetch the full intent chain from the registry using the <tt>session_id</tt>.</li>
+<li><strong>Verify merkle integrity</strong>: Rebuild the merkle tree from all entries. Compare the computed root with <tt>intent_root</tt> from the token. If they do not match, the chain has been tampered with.</li>
+<li><strong>Verify signatures</strong>: For each entry, verify <tt>intent_sig</tt> over <tt>intent_digest</tt> using the sub's public key (discoverable via SPIFFE trust bundle or JWKS). A failed signature indicates a forged entry.</li>
+<li><strong>Verify chain linkage</strong>: For each consecutive pair, verify <tt>entry[i].output_hash == entry[i+1].input_hash</tt>. A broken link indicates content was modified between steps without being recorded.</li>
+<li><strong>Re-derive deterministic outputs</strong>: For <tt>deterministic</tt> entries, retrieve the rule definition matching <tt>rule_hash</tt>, re-apply it to the content matching <tt>input_hash</tt>, and verify the output matches <tt>output_hash</tt>. A mismatch indicates the filter did not behave as recorded.</li>
+<li><strong>Identify the fault point</strong>: If step 4 reveals a broken link at position k, the content was corrupted between entry[k] and entry[k+1]. If step 3 reveals a failed signature at position k, entry[k] was forged. The <tt>sub</tt> field of the faulty entry identifies the responsible agent.</li>
+</ol>
+</section>
+
+<section anchor="cross-chain-correlation"><name>Cross-Chain Correlation</name>
+<t>When used together with the actor chain, forensic verification can answer both <strong>WHO</strong> and <strong>WHAT</strong>:</t>
+
+<ol spacing="compact">
+<li>For each intent chain entry of type <tt>non_deterministic</tt>: verify that <tt>entry.sub</tt> appears in the <tt>actor_chain</tt> of the same token.</li>
+<li>Verify that <tt>entry.iat</tt> falls within the actor's active window (between the actor's own <tt>iat</tt> and the next actor's <tt>iat</tt> in the chain).</li>
+<li>A mismatch indicates an unregistered agent produced content — the intent chain records output from an identity not present in the delegation chain.</li>
+</ol>
+</section>
+
+<section anchor="dispute-resolution-workflow"><name>Dispute Resolution Workflow</name>
+<t>When a dispute arises (e.g., &quot;Agent A did not produce that harmful output&quot;):</t>
+
+<ol spacing="compact">
+<li>Retrieve the archived token and full intent chain.</li>
+<li>Locate entries where <tt>sub</tt> matches Agent A's SPIFFE ID.</li>
+<li>Verify Agent A's <tt>intent_sig</tt> on each of those entries. A valid signature proves Agent A attested to producing that specific <tt>output_hash</tt>.</li>
+<li>Check <tt>input_hash</tt> of Agent A's entry to verify what Agent A received as input.</li>
+<li>If Agent A's output was modified by a downstream filter, the filter's entry shows <tt>input_hash</tt> matching Agent A's <tt>output_hash</tt> and a different <tt>output_hash</tt> — proving the filter made the change, not Agent A.</li>
+</ol>
+</section>
+
+<section anchor="single-entry-verification-merkle-proof"><name>Single Entry Verification (Merkle Proof)</name>
+<t>To verify a single entry without fetching the full chain:</t>
+
+<ol spacing="compact">
+<li>Extract <tt>intent_root</tt> from the token.</li>
+<li>Request a merkle proof for <tt>entry[i]</tt> from the registry.</li>
+<li>The registry returns the entry and sibling hashes on the path to the root.</li>
+<li>Compute the hash of the entry and the path to the root using sibling hashes.</li>
+<li>Compare the computed root with <tt>intent_root</tt>.</li>
+</ol>
+<t><strong>Proof Size</strong>: O(log n) where n is the number of entries.</t>
+
+<sourcecode type="json"><![CDATA[{
+  "entry": {
+    "type": "non_deterministic",
+    "sub": "spiffe://example.com/agent/A",
+    "input_hash": "sha256:prompt...",
+    "output_hash": "sha256:abc...",
+    "iat": 1700000010
+  },
+  "proof": {
+    "index": 0,
+    "siblings": [
+      {"position": "right", "hash": "sha256:111..."},
+      {"position": "right", "hash": "sha256:222..."},
+      {"position": "left", "hash": "sha256:333..."}
+    ]
+  }
+}
+]]></sourcecode>
+</section>
+</section>
+</section>
+
+<section anchor="operational-flows"><name>Operational Flows</name>
+
+<section anchor="intent-chain-construction"><name>Intent Chain Construction</name>
+
+<artwork><![CDATA[  Agent A        Filter        Agent B       Intent
+                                             Registry
+     |               |               |           |
+     | Produce       |               |           |
+     | output        |               |           |
+     |---------------+---------------+---------->|
+     |               |               |  Append   |
+     |               |               | non-det   |
+     |               |               |   entry   |
+     |               |               |           |
+     | Send to       |               |           |
+     | filter        |               |           |
+     |-------------->|               |           |
+     |               |               |           |
+     |               | Transform     |           |
+     |               | content       |           |
+     |               |---------------+---------->|
+     |               |               |  Append   |
+     |               |               | filter    |
+     |               |               |   entry   |
+     |               |               |           |
+     |               | Send to       |           |
+     |               | Agent B       |           |
+     |               |-------------->|           |
+     |               |               |           |
+     |               |               | Produce   |
+     |               |               | output    |
+     |               |               |---------->|
+     |               |               |  Append   |
+     |               |               | non-det   |
+     |               |               |   entry   |
+     |               |               |           |
+]]></artwork>
+</section>
+
+<section anchor="token-exchange-integration"><name>Token Exchange Integration</name>
+
+<artwork><![CDATA[  Agent B          AS          Intent      Actor
+                               Registry    Registry
+     |               |            |            |
+     | Token         |            |            |
+     | Exchange      |            |            |
+     | Request       |            |            |
+     |-------------->|            |            |
+     |               |            |            |
+     |               | Validate   |            |
+     |               | existing   |            |
+     |               | actor_chain|            |
+     |               |            |            |
+     |               | Extend     |            |
+     |               | actor_chain|            |
+     |               |------------+----------->|
+     |               |            |   Store    |
+     |               |            | capability |
+     |               |            |            |
+     |               | Compute    |            |
+     |               | intent_root|            |
+     |               |----------->|            |
+     |               | Get merkle |            |
+     |               | root       |            |
+     |               |<-----------|            |
+     |               |            |            |
+     | New token     |            |            |
+     | with both     |            |            |
+     | chains        |            |            |
+     |<--------------|            |            |
+     |               |            |            |
+]]></artwork>
+</section>
+
+<section anchor="request-time-check-at-relying-party"><name>Request-Time Check at Relying Party</name>
+
+<artwork><![CDATA[  Agent C       Relying       Intent      Actor
+                 Party        Registry    Registry
+     |               |            |            |
+     | Request +     |            |            |
+     | Token         |            |            |
+     |-------------->|            |            |
+     |               |            |            |
+     |               | Verify JWT |            |
+     |               | signature  |            |
+     |               |            |            |
+     |               | Verify     |            |
+     |               | actor_chain|            |
+     |               | (per mode) |            |
+     |               |            |            |
+     |               | Check      |            |
+     |               | intent_root|            |
+     |               | present    |            |
+     |               |            |            |
+     |               | Apply      |            |
+     |               | policy on  |            |
+     |               | entry types|            |
+     |               |----------->|            |
+     |               | Fetch entry|            |
+     |               | types only |            |
+     |               |<-----------|            |
+     |               |            |            |
+     |               | Policy OK: |            |
+     |               | Execute    |            |
+     |               |            |            |
+     | Response      |            |            |
+     |<--------------|            |            |
+     |               |            |            |
+]]></artwork>
+</section>
+</section>
+
+<section anchor="policy-enforcement"><name>Policy Enforcement</name>
+
+<section anchor="policy-examples"><name>Policy Examples</name>
+
+<section anchor="require-all-outputs-filtered"><name>Require All Outputs Filtered</name>
+<t>Every agent output must be followed by at least one filter:</t>
+
+<artwork><![CDATA[require_filtered_outputs {
+    intent_chain := get_intent_chain(input.intent_root)
+
+    agent_outputs := [i |
+        intent_chain[i].type == "non_deterministic"]
+
+    every i in agent_outputs {
+        # Next entry must be a filter (if not last)
+        i < count(intent_chain) - 1
+        intent_chain[i + 1].type != "non_deterministic"
+    }
+}
+]]></artwork>
+</section>
+
+<section anchor="require-non-deterministic-filter-for-ai-outputs"><name>Require Non-Deterministic Filter for AI Outputs</name>
+<t>AI agent outputs must pass through an AI guardrail:</t>
+
+<artwork><![CDATA[require_ai_guardrail {
+    intent_chain := get_intent_chain(input.intent_root)
+
+    every i, entry in intent_chain {
+        entry.type == "non_deterministic" implies {
+            # Must be followed by an entry with AI guardrail model
+            some j
+            j > i
+            intent_chain[j].model_info.model ==
+                "llama-guard-3"
+        }
+    }
+}
+]]></artwork>
+</section>
+
+<section anchor="verify-specific-transformation-applied"><name>Verify Specific Transformation Applied</name>
+<t>Sensitive fields must be sanitized:</t>
+
+<artwork><![CDATA[require_pii_redaction {
+    intent_chain := get_intent_chain(input.intent_root)
+
+    some i
+    intent_chain[i].type == "deterministic"
+    intent_chain[i].rule_id == "pii-redaction-v1"
+}
+]]></artwork>
+</section>
+</section>
+
+<section anchor="integration-with-policy-engines"><name>Integration with Policy Engines</name>
+<t>The intent chain claims are designed for consumption by policy engines such as Open Policy Agent (OPA). A policy engine SHOULD:</t>
+
+<ol spacing="compact">
+<li>Validate session expiry and revocation status.</li>
+<li>Verify actor chain integrity (per [[!I-D.draft-mw-spice-actor-chain]]).</li>
+<li>Verify <tt>intent_root</tt> and <tt>intent_registry</tt> are present and non-empty.</li>
+<li>Evaluate deployment-specific requirements against the intent chain entries (e.g., requiring filtered outputs, specific guardrail models, or PII redaction).</li>
+</ol>
+</section>
+</section>
+
+<section anchor="security-considerations"><name>Security Considerations</name>
+
+<section anchor="stride-analysis"><name>STRIDE Analysis</name>
+<table>
+<thead>
+<tr>
+<th align="left">Threat</th>
+<th align="left">Mitigation</th>
+<th align="left">Mechanism</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><strong>Spoofing</strong></td>
+<td align="left">Cryptographic identity</td>
+<td align="left">Actor chain, SPIFFE IDs</td>
+</tr>
+
+<tr>
+<td align="left"><strong>Tampering</strong></td>
+<td align="left">Merkle tree integrity</td>
+<td align="left">Append-only logs, merkle root in JWT</td>
+</tr>
+
+<tr>
+<td align="left"><strong>Repudiation</strong></td>
+<td align="left">Signed outputs</td>
+<td align="left"><tt>intent_sig</tt> on agent and filter entries</td>
+</tr>
+
+<tr>
+<td align="left"><strong>Information Disclosure</strong></td>
+<td align="left">Selective disclosure</td>
+<td align="left">SD-JWT, content hashes not content</td>
+</tr>
+
+<tr>
+<td align="left"><strong>Denial of Service</strong></td>
+<td align="left">Session lifecycle</td>
+<td align="left">Expiry, rate limits</td>
+</tr>
+
+<tr>
+<td align="left"><strong>Elevation of Privilege</strong></td>
+<td align="left">Scope attenuation</td>
+<td align="left">Actor chain, policy enforcement</td>
+</tr>
+</tbody>
+</table></section>
+
+<section anchor="signing-requirements-by-entry-type"><name>Signing Requirements by Entry Type</name>
+<table>
+<thead>
+<tr>
+<th align="left">Entry Type</th>
+<th align="left">Required Signatures</th>
+<th align="left">Rationale</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><tt>non_deterministic</tt></td>
+<td align="left"><tt>intent_sig</tt> over <tt>intent_digest</tt> (REQUIRED)</td>
+<td align="left">Non-reproducible; signs <tt>input_hash</tt> + <tt>output_hash</tt> to prove what was received and produced</td>
+</tr>
+
+<tr>
+<td align="left"><tt>deterministic</tt></td>
+<td align="left"><tt>intent_sig</tt> over <tt>intent_digest</tt> (REQUIRED)</td>
+<td align="left">Reproducible; signs <tt>input_hash</tt> + <tt>output_hash</tt>. Type-specific fields (<tt>rule_id</tt>, <tt>rule_hash</tt>) enable independent re-verification</td>
+</tr>
+</tbody>
+</table></section>
+
+<section anchor="replay-protection"><name>Replay Protection</name>
+<t>Each intent chain entry includes an <tt>iat</tt> (issued-at) timestamp. The session-scoped partitioning of the intent registry prevents cross-session replay. Additionally, the merkle root is bound to the JWT via the <tt>intent_root</tt> claim, and the JWT itself carries <tt>exp</tt> and <tt>jti</tt> claims, providing token-level replay protection.</t>
+</section>
+
+<section anchor="chain-integrity"><name>Chain Integrity</name>
+<t>The merkle tree structure provides tamper evidence for the intent chain. Any modification to an entry changes its leaf hash, which propagates up the tree, changing the merkle root. Since the merkle root is included in the signed JWT, any tampering with the intent chain entries is detectable.</t>
+<t>The append-only property of the intent registry provides additional protection: entries cannot be deleted or modified after creation.</t>
+</section>
+
+<section anchor="credential-isolation"><name>Credential Isolation</name>
+<t>Intent registry entries MUST NOT contain OAuth tokens, bearer credentials, or signing keys. The relationship between tokens and registry entries is one-directional: the token references the registry via the <tt>intent_registry</tt> URI claim, but the registry MUST NOT store or reference the token. This separation ensures that compromise of the intent registry does not expose bearer credentials that could be used for unauthorized access.</t>
+</section>
+</section>
+
+<section anchor="privacy-considerations"><name>Privacy Considerations</name>
+
+<section anchor="selective-disclosure"><name>Selective Disclosure</name>
+<t>The intent chain contains content hashes rather than actual content. This provides provenance without exposing the content itself. When combined with SD-JWT [[!I-D.ietf-oauth-selective-disclosure-jwt]], individual intent chain entries can be selectively disclosed to different verifiers.</t>
+</section>
+
+<section anchor="content-hash-vs-content-storage"><name>Content Hash vs Content Storage</name>
+<t>The intent chain stores SHA-256 hashes of content, not the content itself. This design choice provides:</t>
+
+<ul spacing="compact">
+<li><strong>Provenance without exposure</strong>: Verifiers can confirm that specific content was produced without seeing the content.</li>
+<li><strong>Reduced log size</strong>: Hashes are fixed-size regardless of content size.</li>
+<li><strong>Privacy by default</strong>: Content is not exposed through the intent chain; access to the original content requires separate authorization.</li>
+</ul>
+</section>
+</section>
+
+<section anchor="implementation-guidance"><name>Implementation Guidance</name>
+
+<section anchor="intent-registry-implementation"><name>Intent Registry Implementation</name>
+<t>The intent registry stores immutable intent chain entries. Recommended properties:</t>
+
+<ul spacing="compact">
+<li>Append-only log structure</li>
+<li>Partitioned by <tt>session.session_id</tt> for isolation</li>
+<li>Configurable retention period</li>
+<li>Merkle root computation triggered on append or at token exchange time</li>
+</ul>
+</section>
+
+<section anchor="scalability-considerations"><name>Scalability Considerations</name>
+
+<ul spacing="compact">
+<li><strong>Log Partitioning</strong>: Session-based partitioning ensures that intent chains for different sessions are isolated and can be processed in parallel.</li>
+<li><strong>Merkle Root Caching</strong>: Computed merkle roots SHOULD be cached to avoid recomputation on every token exchange.</li>
+<li><strong>Proof Materialization</strong>: Merkle proofs for recent entries SHOULD be pre-computed and cached for O(1) retrieval.</li>
+</ul>
+</section>
+
+<section anchor="operational-recommendations"><name>Operational Recommendations</name>
+
+<ul spacing="compact">
+<li><strong>Retention Policy</strong>: Intent chain logs SHOULD be retained for the maximum audit window required by the deployment's regulatory environment.</li>
+<li><strong>Monitoring</strong>: Operators SHOULD monitor intent chain append latency and merkle root computation time.</li>
+<li><strong>Backup</strong>: Intent chain logs SHOULD be replicated across availability zones for durability.</li>
+</ul>
+</section>
+</section>
+
+<section anchor="design-rationale-merkle-root-in-token"><name>Design Rationale: Merkle Root in Token</name>
+<t>The intent chain uses a Merkle root in the token rather than embedding the full chain inline. The following table summarizes the trade-offs:</t>
+<table>
+<thead>
+<tr>
+<th align="left">Approach</th>
+<th align="left">Token Size</th>
+<th align="left">Verification</th>
+<th align="left">Privacy</th>
+<th align="left">Selective Verify</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td align="left"><strong>A. Full chain in token</strong></td>
+<td align="left">O(n) — grows per entry</td>
+<td align="left">Inline, zero latency</td>
+<td align="left">Poor — all entries exposed</td>
+<td align="left">All-or-nothing</td>
+</tr>
+
+<tr>
+<td align="left"><strong>B. Merkle root in token</strong></td>
+<td align="left">O(1) — ~64 bytes</td>
+<td align="left">O(log n) per entry</td>
+<td align="left">Good — selective disclosure</td>
+<td align="left">Single-entry proofs</td>
+</tr>
+
+<tr>
+<td align="left"><strong>C. Simple hash of chain</strong></td>
+<td align="left">O(1) — ~64 bytes</td>
+<td align="left">O(n) — must rehash all</td>
+<td align="left">Good — external storage</td>
+<td align="left">Must verify all</td>
+</tr>
+
+<tr>
+<td align="left"><strong>D. No provenance in token</strong></td>
+<td align="left">Zero overhead</td>
+<td align="left">External lookup</td>
+<td align="left">Best — nothing in token</td>
+<td align="left">Any pattern</td>
+</tr>
+</tbody>
+</table><t>Approach B is chosen because intent chains can contain 20-50+ entries, making inline embedding impractical for data-plane proxies. The Merkle tree enables O(log n) selective verification of individual entries and provides cryptographic binding between the token and the registry. The actor chain ([[!I-D.draft-mw-spice-actor-chain]]) uses approach A because delegation chains are small (typically 3-5 entries) and every Relying Party needs the full delegation path.</t>
+</section>
+
+<section anchor="audit-procedures"><name>Audit Procedures</name>
+
+<section anchor="cross-chain-binding"><name>Cross-Chain Binding</name>
+<t>When auditing actor and intent chains together, the auditor performs cross-chain binding checks:</t>
+<t>For each intent chain entry of type <tt>non_deterministic</tt>: verify that <tt>entry.sub</tt> appears in <tt>actor_chain</tt>. Verify that <tt>entry.iat</tt> falls within the actor's active window. A mismatch indicates an unregistered agent produced content.</t>
+<t>Full two-chain audit is RECOMMENDED for regulatory submissions, dispute resolution, and post-breach forensic analysis.</t>
+</section>
+</section>
+
+<section anchor="iana-considerations"><name>IANA Considerations</name>
+
+<section anchor="jwt-claim-registration"><name>JWT Claim Registration</name>
+<t>This document requests registration of the following claims in the &quot;JSON Web Token Claims&quot; registry established by [[RFC7519]]:</t>
+
+<ul>
+<li><strong>Claim Name</strong>: <tt>intent_root</tt></li>
+<li><strong>Claim Description</strong>: Merkle root hash of the intent chain for content provenance verification.</li>
+<li><strong>Change Controller</strong>: IETF</li>
+<li><t><strong>Specification Document(s)</strong>: [this document]</t>
+</li>
+<li><t><strong>Claim Name</strong>: <tt>intent_alg</tt></t>
+</li>
+<li><t><strong>Claim Description</strong>: Hash algorithm used for intent chain merkle tree construction.</t>
+</li>
+<li><t><strong>Change Controller</strong>: IETF</t>
+</li>
+<li><t><strong>Specification Document(s)</strong>: [this document]</t>
+</li>
+<li><t><strong>Claim Name</strong>: <tt>intent_registry</tt></t>
+</li>
+<li><t><strong>Claim Description</strong>: URI of the intent registry for proof retrieval.</t>
+</li>
+<li><t><strong>Change Controller</strong>: IETF</t>
+</li>
+<li><t><strong>Specification Document(s)</strong>: [this document]</t>
+</li>
+</ul>
+</section>
+
+<section anchor="cwt-claim-registration"><name>CWT Claim Registration</name>
+<t>This document requests registration of the following claims in the &quot;CBOR Web Token (CWT) Claims&quot; registry established by [[RFC8392]]:</t>
+
+<ul>
+<li><strong>Claim Name</strong>: <tt>intent_root</tt></li>
+<li><strong>Claim Description</strong>: Merkle root hash of the intent chain.</li>
+<li><strong>CBOR Key</strong>: TBD (e.g., 50)</li>
+<li><strong>Claim Type</strong>: tstr</li>
+<li><strong>Change Controller</strong>: IETF</li>
+<li><t><strong>Specification Document(s)</strong>: [this document]</t>
+</li>
+<li><t><strong>Claim Name</strong>: <tt>intent_registry</tt></t>
+</li>
+<li><t><strong>Claim Description</strong>: URI of the intent registry for proof retrieval.</t>
+</li>
+<li><t><strong>CBOR Key</strong>: TBD (e.g., 51)</t>
+</li>
+<li><t><strong>Claim Type</strong>: tstr</t>
+</li>
+<li><t><strong>Change Controller</strong>: IETF</t>
+</li>
+<li><t><strong>Specification Document(s)</strong>: [this document]</t>
+</li>
+<li><t><strong>Claim Name</strong>: <tt>intent_alg</tt></t>
+</li>
+<li><t><strong>Claim Description</strong>: Hash algorithm used for intent chain merkle tree construction.</t>
+</li>
+<li><t><strong>CBOR Key</strong>: TBD (e.g., 52)</t>
+</li>
+<li><t><strong>Claim Type</strong>: tstr</t>
+</li>
+<li><t><strong>Change Controller</strong>: IETF</t>
+</li>
+<li><t><strong>Specification Document(s)</strong>: [this document]</t>
+</li>
+</ul>
+</section>
+</section>
+
+</middle>
+
+<back>
+
+<section anchor="merkle-tree-construction-details"><name>Merkle Tree Construction Details</name>
+
+<section anchor="tree-structure"><name>Tree Structure</name>
+
+<artwork><![CDATA[                    intent_root (in JWT)
+                          |
+                +---------+---------+
+                |                   |
+          Hash(0-2)              Hash(3-5)
+                |                   |
+        +-------+-------+   +-------+-------+
+        |               |   |               |
+     Hash(0-1)      Hash(2) Hash(3-4)    Hash(5)
+        |               |       |           |
+    +---+---+           |   +---+---+       |
+    |       |           |   |       |       |
+ Entry0  Entry1     Entry2 Entry3 Entry4  Entry5
+ (non-det)(non-det) (det)  (non-det)(det) (non-det)
+]]></artwork>
+</section>
+
+<section anchor="reference-construction-algorithm"><name>Reference Construction Algorithm</name>
+
+<sourcecode type="python"><![CDATA[def compute_merkle_root(entries):
+    if len(entries) == 0:
+        return None
+
+    # Compute leaf hashes
+    hashes = [sha256(canonical_json(entry)) for entry in entries]
+
+    # Build tree bottom-up
+    while len(hashes) > 1:
+        next_level = []
+        for i in range(0, len(hashes), 2):
+            if i + 1 < len(hashes):
+                combined = sha256(hashes[i] + hashes[i+1])
+            else:
+                combined = hashes[i]  # Odd node promoted
+            next_level.append(combined)
+        hashes = next_level
+
+    return hashes[0]
+]]></sourcecode>
+</section>
+</section>
+
+<section anchor="complete-token-examples"><name>Complete Token Examples</name>
+
+<section anchor="full-governance-token"><name>Full Governance Token</name>
+<t>The following example shows a complete token with session, actor chain, and intent chain:</t>
+
+<sourcecode type="json"><![CDATA[{
+  "iss": "https://auth.example.com",
+  "sub": "user-alice",
+  "aud": "https://api.example.com",
+  "jti": "tok-ddd-67890",
+  "iat": 1700000000,
+  "exp": 1700003600,
+
+  "session": {
+    "session_id": "sess-uuid-12345",
+    "type": "human_initiated",
+    "initiator": "user-alice",
+    "approval_ref": "approval-uuid-789",
+    "max_chain_depth": 5
+  },
+
+  "actor_chain": [
+    {
+      "sub": "spiffe://example.com/agent/orchestrator",
+      "iss": "https://auth.example.com",
+      "iat": 1700000010,
+      "scope": "ticket:*",
+      "chain_digest": "sha256:aaa...",
+      "chain_sig": "eyJhbGciOiJFUzI1NiIs..."
+    },
+    {
+      "sub": "spiffe://example.com/agent/support",
+      "iss": "https://auth.example.com",
+      "iat": 1700000030,
+      "scope": "ticket:create",
+      "chain_digest": "sha256:bbb...",
+      "chain_sig": "eyJhbGciOiJFUzI1NiIs..."
+    }
+  ],
+
+  "intent_root": "sha256:abc123def456789...",
+  "intent_registry":
+    "https://intent-log.example.com/sessions/sess-uuid-12345"
+}
+]]></sourcecode>
+</section>
+
+<section anchor="corresponding-intent-chain-log-entries"><name>Corresponding Intent Chain Log Entries</name>
+<t>The following entries would be stored in the intent registry for the above token:</t>
+
+<sourcecode type="json"><![CDATA[[
+  {
+    "offset": 0,
+    "entry": {
+      "type": "non_deterministic",
+      "sub":
+        "spiffe://example.com/agent/orchestrator",
+      "input_hash": "sha256:prompt...",
+      "output_hash": "sha256:abc...",
+      "iat": 1700000010,
+      "intent_digest": "sha256:leaf0...",
+      "intent_sig": "eyJ..."
+    }
+  },
+  {
+    "offset": 1,
+    "entry": {
+      "type": "non_deterministic",
+      "sub":
+        "spiffe://example.com/filter/ai-guardrail",
+      "filter_version": "v2.1",
+      "input_hash": "sha256:abc...",
+      "output_hash": "sha256:def...",
+      "model_info": {
+        "model": "llama-guard-3",
+        "categories": ["violence", "pii"]
+      },
+      "iat": 1700000012,
+      "intent_digest": "sha256:leaf1...",
+      "intent_sig": "eyJ..."
+    }
+  },
+  {
+    "offset": 2,
+    "entry": {
+      "type": "deterministic",
+      "sub":
+        "spiffe://example.com/filter/schema-validator",
+      "filter_version": "v1.0",
+      "input_hash": "sha256:def...",
+      "output_hash": "sha256:ghi...",
+      "rule_id": "ticket-schema-v2",
+      "rule_hash": "sha256:rrr...",
+      "reproducible": true,
+      "iat": 1700000013,
+      "intent_digest": "sha256:leaf2...",
+      "intent_sig": "eyJ..."
+    }
+  },
+  {
+    "offset": 3,
+    "entry": {
+      "type": "non_deterministic",
+      "sub":
+        "spiffe://example.com/agent/support",
+      "input_hash": "sha256:ghi...",
+      "output_hash": "sha256:jkl...",
+      "iat": 1700000030,
+      "intent_digest": "sha256:leaf3...",
+      "intent_sig": "eyJ..."
+    }
+  },
+  {
+    "offset": 4,
+    "entry": {
+      "type": "deterministic",
+      "sub":
+        "spiffe://example.com/filter/pii-redactor",
+      "filter_version": "v1.2",
+      "input_hash": "sha256:jkl...",
+      "output_hash": "sha256:mno...",
+      "rule_id": "pii-redaction-v1",
+      "rule_hash": "sha256:ppp...",
+      "reproducible": true,
+      "iat": 1700000031,
+      "intent_digest": "sha256:leaf4...",
+      "intent_sig": "eyJ..."
+    }
+  },
+  {
+    "offset": 5,
+    "entry": {
+      "type": "non_deterministic",
+      "sub":
+        "spiffe://example.com/agent/tool-executor",
+      "input_hash": "sha256:mno...",
+      "output_hash": "sha256:pqr...",
+      "iat": 1700000050,
+      "intent_digest": "sha256:leaf5...",
+      "intent_sig": "eyJ..."
+    }
+  }
+]
+]]></sourcecode>
+</section>
+</section>
+
+</back>
+
+</rfc>
