@@ -50,7 +50,7 @@ organization = "Aryaka"
 
 .# Abstract
 
-This document defines the `intent_chain` claim as a companion to the `actor_chain` claim defined in [[!I-D.draft-mw-spice-actor-chain]]. While the actor chain addresses delegation provenance (WHO delegated to whom), the intent chain addresses content provenance (WHAT was produced and HOW it was transformed).
+This document defines the `intent_chain` claim as a companion to the `actor_chain` claim defined in {{!I-D.draft-mw-spice-actor-chain}}. While the actor chain addresses delegation provenance (WHO delegated to whom), the intent chain addresses content provenance (WHAT was produced and HOW it was transformed).
 
 In AI agent workflows, content flows through multiple processing stages including AI agents and filters. The intent chain provides a cryptographically verifiable, tamper-evident record of this content journey. The full intent chain is stored as ordered logs, with only the merkle root included in the OAuth token for efficiency.
 
@@ -62,7 +62,7 @@ Together, the actor chain and intent chain provide complete governance for auton
 
 ## The Problem: Content Provenance Gap
 
-The Actor Chain extension to [[RFC8693]] (defined in [[!I-D.draft-mw-spice-actor-chain]]) addresses the Delegation Auditability Gap by providing cryptographic proof of the actual delegation path between AI agents. However, it does not address a complementary gap: **Content Provenance**.
+The Actor Chain extension to {{!RFC8693}} (defined in {{!I-D.draft-mw-spice-actor-chain}}) addresses the Delegation Auditability Gap by providing cryptographic proof of the actual delegation path between AI agents. However, it does not address a complementary gap: **Content Provenance**.
 
 In AI agent workflows, content flows through multiple processing stages:
 
@@ -94,9 +94,9 @@ This specification is part of a three-axis "Truth Stack" for AI agent governance
 
 | Specification | Axis | Question Answered | STRIDE Coverage |
 | :--- | :--- | :--- | :--- |
-| **Actor Chain** ([[!I-D.draft-mw-spice-actor-chain]]) | Identity | WHO delegated to whom? | Spoofing, Repudiation, Elevation of Privilege |
+| **Actor Chain** ({{!I-D.draft-mw-spice-actor-chain}}) | Identity | WHO delegated to whom? | Spoofing, Repudiation, Elevation of Privilege |
 | **Intent Chain** (this document) | Content | WHAT was produced and transformed? | Repudiation, Tampering |
-| **Inference Chain** ([[!I-D.draft-mw-spice-inference-chain]]) | Computation | HOW was the output computed? | Spoofing (computational), Tampering (model) |
+| **Inference Chain** ({{!I-D.draft-mw-spice-inference-chain}}) | Computation | HOW was the output computed? | Spoofing (computational), Tampering (model) |
 
 | Chain | Plane | Token Content | Full Chain | Primary Consumer |
 | :--- | :--- | :--- | :--- | :--- |
@@ -125,7 +125,7 @@ The intent chain is designed with the following goals:
 
 # Terminology
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 [[RFC2119]] [[RFC8174]] when, and only when, they appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 {{!RFC2119}} {{!RFC8174}} when, and only when, they appear in all capitals, as shown here.
 
 Intent Chain:
 : An ordered sequence of Intent Chain Entries representing the complete content journey from originating agent through filters to final output within a session.
@@ -158,7 +158,7 @@ Actor Registry:
 The governance model consists of three layers:
 
 - **Session**: Root of trust and lifecycle management. Initiated by human approval or system authorization. Contains subject, expiry, and approval reference.
-- **Actor Chain (WHO)**: Contains AI agents only. Full chain stored in token. Addresses Spoofing, Repudiation, and Elevation of Privilege. Defined in [[!I-D.draft-mw-spice-actor-chain]].
+- **Actor Chain (WHO)**: Contains AI agents only. Full chain stored in token. Addresses Spoofing, Repudiation, and Elevation of Privilege. Defined in {{!I-D.draft-mw-spice-actor-chain}}.
 - **Intent Chain (WHAT)**: Contains AI agents and filters. Full chain stored in ordered logs; merkle root in token. Addresses Repudiation and Tampering. Defined in this document.
 
 ## Session as Root of Trust
@@ -181,7 +181,7 @@ Session information is captured in standard OAuth token claims:
 
 ## Actor Chain (WHO) - Reference
 
-The actor chain is defined in [[!I-D.draft-mw-spice-actor-chain]]. Key properties:
+The actor chain is defined in {{!I-D.draft-mw-spice-actor-chain}}. Key properties:
 
 - Contains AI agents only (autonomous decision-makers)
 - Tracks delegation of authority
@@ -346,7 +346,7 @@ For an entry E with fields {type, sub, input_hash, output_hash, iat, ...}:
 intent_digest = SHA-256(canonical_json(E \ {intent_digest, intent_sig}))
 ```
 
-Where `canonical_json` follows JSON Canonicalization Scheme [[JCS]] (RFC 8785) to ensure deterministic serialization.
+Where `canonical_json` follows JSON Canonicalization Scheme {{JCS}} (RFC 8785) to ensure deterministic serialization.
 
 The `intent_sig` (when REQUIRED) is computed over the `intent_digest` value using the agent's private key:
 
@@ -515,7 +515,7 @@ The complete token combines session, actor chain, and intent chain:
 
 ### Actor Chain Claims
 
-Defined in [[!I-D.draft-mw-spice-actor-chain]].
+Defined in {{!I-D.draft-mw-spice-actor-chain}}.
 
 ### Intent Chain Claims
 
@@ -841,7 +841,7 @@ require_pii_redaction {
 The intent chain claims are designed for consumption by policy engines such as Open Policy Agent (OPA). A policy engine SHOULD:
 
 1. Validate session expiry and revocation status.
-2. Verify actor chain integrity (per [[!I-D.draft-mw-spice-actor-chain]]).
+2. Verify actor chain integrity (per {{!I-D.draft-mw-spice-actor-chain}}).
 3. Verify `intent_root` and `intent_registry` are present and non-empty.
 4. Evaluate deployment-specific requirements against the intent chain entries (e.g., requiring filtered outputs, specific guardrail models, or PII redaction).
 
@@ -883,7 +883,7 @@ Intent registry entries MUST NOT contain OAuth tokens, bearer credentials, or si
 
 ## Selective Disclosure
 
-The intent chain contains content hashes rather than actual content. This provides provenance without exposing the content itself. When combined with SD-JWT [[!I-D.ietf-oauth-selective-disclosure-jwt]], individual intent chain entries can be selectively disclosed to different verifiers.
+The intent chain contains content hashes rather than actual content. This provides provenance without exposing the content itself. When combined with SD-JWT {{!I-D.ietf-oauth-selective-disclosure-jwt}}, individual intent chain entries can be selectively disclosed to different verifiers.
 
 ## Content Hash vs Content Storage
 
@@ -927,7 +927,7 @@ The intent chain uses a Merkle root in the token rather than embedding the full 
 | **C. Simple hash of chain** | O(1) — ~64 bytes | O(n) — must rehash all | Good — external storage | Must verify all |
 | **D. No provenance in token** | Zero overhead | External lookup | Best — nothing in token | Any pattern |
 
-Approach B is chosen because intent chains can contain 20-50+ entries, making inline embedding impractical for data-plane proxies. The Merkle tree enables O(log n) selective verification of individual entries and provides cryptographic binding between the token and the registry. The actor chain ([[!I-D.draft-mw-spice-actor-chain]]) uses approach A because delegation chains are small (typically 3-5 entries) and every Relying Party needs the full delegation path.
+Approach B is chosen because intent chains can contain 20-50+ entries, making inline embedding impractical for data-plane proxies. The Merkle tree enables O(log n) selective verification of individual entries and provides cryptographic binding between the token and the registry. The actor chain ({{!I-D.draft-mw-spice-actor-chain}}) uses approach A because delegation chains are small (typically 3-5 entries) and every Relying Party needs the full delegation path.
 
 # Audit Procedures
 
@@ -943,7 +943,7 @@ Full two-chain audit is RECOMMENDED for regulatory submissions, dispute resoluti
 
 ## JWT Claim Registration
 
-This document requests registration of the following claims in the "JSON Web Token Claims" registry established by [[RFC7519]]:
+This document requests registration of the following claims in the "JSON Web Token Claims" registry established by {{!RFC7519}}:
 
 - **Claim Name**: `intent_root`
 - **Claim Description**: Merkle root hash of the intent chain for content provenance verification.
@@ -962,7 +962,7 @@ This document requests registration of the following claims in the "JSON Web Tok
 
 ## CWT Claim Registration
 
-This document requests registration of the following claims in the "CBOR Web Token (CWT) Claims" registry established by [[RFC8392]]:
+This document requests registration of the following claims in the "CBOR Web Token (CWT) Claims" registry established by {{!RFC8392}}:
 
 - **Claim Name**: `intent_root`
 - **Claim Description**: Merkle root hash of the intent chain.

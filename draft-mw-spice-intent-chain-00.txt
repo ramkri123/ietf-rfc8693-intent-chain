@@ -20,7 +20,7 @@ Expires: 9 September 2026                                         Oracle
 Abstract
 
    This document defines the intent_chain claim as a companion to the
-   actor_chain claim defined in [[!I-D.draft-mw-spice-actor-chain]].
+   actor_chain claim defined in {{!I-D.draft-mw-spice-actor-chain}}.
    While the actor chain addresses delegation provenance (WHO delegated
    to whom), the intent chain addresses content provenance (WHAT was
    produced and HOW it was transformed).
@@ -174,8 +174,8 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 1.1.  The Problem: Content Provenance Gap
 
-   The Actor Chain extension to [RFC8693] (defined in [[!I-D.draft-mw-
-   spice-actor-chain]]) addresses the Delegation Auditability Gap by
+   The Actor Chain extension to {{!RFC8693}} (defined in {{!I-D.draft-
+   mw-spice-actor-chain}}) addresses the Delegation Auditability Gap by
    providing cryptographic proof of the actual delegation path between
    AI agents.  However, it does not address a complementary gap:
    *Content Provenance*.
@@ -236,19 +236,19 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    |                   |             | Answered     |                  |
    +===================+=============+==============+==================+
    | *Actor Chain*     | Identity    | WHO          | Spoofing,        |
-   | ([[!I-D.draft-    |             | delegated to | Repudiation,     |
+   | ({{!I-D.draft-    |             | delegated to | Repudiation,     |
    | mw-spice-actor-   |             | whom?        | Elevation of     |
-   | chain]])          |             |              | Privilege        |
+   | chain}})          |             |              | Privilege        |
    +-------------------+-------------+--------------+------------------+
    | *Intent Chain*    | Content     | WHAT was     | Repudiation,     |
    | (this document)   |             | produced and | Tampering        |
    |                   |             | transformed? |                  |
    +-------------------+-------------+--------------+------------------+
    | *Inference        | Computation | HOW was the  | Spoofing         |
-   | Chain* ([[!I-     |             | output       | (computational), |
+   | Chain* ({{!I-     |             | output       | (computational), |
    | D.draft-mw-       |             | computed?    | Tampering        |
    | spice-inference-  |             |              | (model)          |
-   | chain]])          |             |              |                  |
+   | chain}})          |             |              |                  |
    +-------------------+-------------+--------------+------------------+
 
                                   Table 1
@@ -308,7 +308,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
    "OPTIONAL" in this document are to be interpreted as described in BCP
-   14 [[RFC2119]] [[RFC8174]] when, and only when, they appear in all
+   14 {{!RFC2119}} {{!RFC8174}} when, and only when, they appear in all
    capitals, as shown here.
 
    Intent Chain:  An ordered sequence of Intent Chain Entries
@@ -354,7 +354,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
       and approval reference.
    *  *Actor Chain (WHO)*: Contains AI agents only.  Full chain stored
       in token.  Addresses Spoofing, Repudiation, and Elevation of
-      Privilege.  Defined in [[!I-D.draft-mw-spice-actor-chain]].
+      Privilege.  Defined in {{!I-D.draft-mw-spice-actor-chain}}.
    *  *Intent Chain (WHAT)*: Contains AI agents and filters.  Full chain
       stored in ordered logs; merkle root in token.  Addresses
       Repudiation and Tampering.  Defined in this document.
@@ -396,7 +396,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 3.3.  Actor Chain (WHO) - Reference
 
-   The actor chain is defined in [[!I-D.draft-mw-spice-actor-chain]].
+   The actor chain is defined in {{!I-D.draft-mw-spice-actor-chain}}.
    Key properties:
 
    *  Contains AI agents only (autonomous decision-makers)
@@ -660,8 +660,8 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 intent_digest = SHA-256(canonical_json(E \ {intent_digest, intent_sig}))
 
-   Where canonical_json follows JSON Canonicalization Scheme [JCS] (RFC
-   8785) to ensure deterministic serialization.
+   Where canonical_json follows JSON Canonicalization Scheme {{JCS}}
+   (RFC 8785) to ensure deterministic serialization.
 
    The intent_sig (when REQUIRED) is computed over the intent_digest
    value using the agent's private key:
@@ -929,7 +929,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 6.2.2.  Actor Chain Claims
 
-   Defined in [[!I-D.draft-mw-spice-actor-chain]].
+   Defined in {{!I-D.draft-mw-spice-actor-chain}}.
 
 6.2.3.  Intent Chain Claims
 
@@ -1459,8 +1459,8 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
    1.  Validate session expiry and revocation status.
-   2.  Verify actor chain integrity (per [[!I-D.draft-mw-spice-actor-
-       chain]]).
+   2.  Verify actor chain integrity (per {{!I-D.draft-mw-spice-actor-
+       chain}}).
    3.  Verify intent_root and intent_registry are present and non-empty.
    4.  Evaluate deployment-specific requirements against the intent
        chain entries (e.g., requiring filtered outputs, specific
@@ -1556,7 +1556,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    The intent chain contains content hashes rather than actual content.
    This provides provenance without exposing the content itself.  When
-   combined with SD-JWT [[!I-D.ietf-oauth-selective-disclosure-jwt]],
+   combined with SD-JWT {{!I-D.ietf-oauth-selective-disclosure-jwt}},
    individual intent chain entries can be selectively disclosed to
    different verifiers.
 
@@ -1662,7 +1662,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    entries, making inline embedding impractical for data-plane proxies.
    The Merkle tree enables O(log n) selective verification of individual
    entries and provides cryptographic binding between the token and the
-   registry.  The actor chain ([[!I-D.draft-mw-spice-actor-chain]]) uses
+   registry.  The actor chain ({{!I-D.draft-mw-spice-actor-chain}}) uses
    approach A because delegation chains are small (typically 3-5
    entries) and every Relying Party needs the full delegation path.
 
@@ -1695,7 +1695,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 15.1.  JWT Claim Registration
 
    This document requests registration of the following claims in the
-   "JSON Web Token Claims" registry established by [[RFC7519]]:
+   "JSON Web Token Claims" registry established by {{!RFC7519}}:
 
    *  *Claim Name*: intent_root
 
@@ -1727,7 +1727,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 15.2.  CWT Claim Registration
 
    This document requests registration of the following claims in the
-   "CBOR Web Token (CWT) Claims" registry established by [[RFC8392]]:
+   "CBOR Web Token (CWT) Claims" registry established by {{!RFC8392}}:
 
    *  *Claim Name*: intent_root
 
