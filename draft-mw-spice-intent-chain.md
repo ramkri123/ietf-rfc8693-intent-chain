@@ -101,13 +101,14 @@ This specification is part of a three-axis "Truth Stack" for AI agent governance
 | Chain | Plane | Token Content | Full Chain | Primary Consumer |
 | :--- | :--- | :--- | :--- | :--- |
 | **Actor** | Data Plane | Full chain inline | In token | Every Relying Party (real-time authorization) |
-| **Intent** | Audit Plane | Merkle root only | External registry | Audit systems, forensic investigators |
-| **Inference** | Audit Plane | Merkle root only | External registry | Auditors, compliance systems |
+| **Intent** | Audit Plane | merkle root only | External registry | Audit systems, forensic investigators |
+| **Inference** | Audit Plane | merkle root only | External registry | Auditors, compliance systems |
 
 The three chains are independent and composable:
 
 - **Actor Chain Only**: Real-time authorization, access control
 - **Intent Chain Only**: Content audit, debugging, filter validation
+- **Inference Chain Only**: Computational integrity verification for single-agent systems
 - **Actor + Intent**: Full content governance, dispute resolution, regulatory compliance
 - **All Three**: Complete "Truth Stack" — identity, content, and computational provenance
 
@@ -117,7 +118,7 @@ The intent chain is designed with the following goals:
 
 1. **Content Provenance**: Cryptographic proof of what each agent produced
 2. **Transformation Tracking**: Record of how filters modified content
-3. **Tamper Evidence**: Merkle tree structure prevents undetected modification
+3. **Tamper Evidence**: merkle tree structure prevents undetected modification
 4. **Efficiency**: Only merkle root in token; full chain in logs
 5. **Scalability**: Append-only logs scale horizontally
 6. **Modularity**: Usable independently or with actor chain
@@ -148,8 +149,8 @@ Intent Root:
 Intent Registry:
 : An append-only ordered log storing the full intent chain entries, partitioned by session.
 
-Actor Registry:
-: A database storing mutable state including capabilities and revocation status.
+Actor Chain Registry:
+: The append-only ordered log storing the full per-actor signature evidence for the actor chain, as defined in {{!I-D.draft-mw-spice-actor-chain}}. Referenced by the `actor_chain_registry` claim in the token.
 
 # Architecture Overview
 
@@ -160,6 +161,7 @@ The governance model consists of three layers:
 - **Session**: Root of trust and lifecycle management. Initiated by human approval or system authorization. Contains subject, expiry, and approval reference.
 - **Actor Chain (WHO)**: Contains AI agents only. Full chain stored in token. Addresses Spoofing, Repudiation, and Elevation of Privilege. Defined in {{!I-D.draft-mw-spice-actor-chain}}.
 - **Intent Chain (WHAT)**: Contains AI agents and filters. Full chain stored in ordered logs; merkle root in token. Addresses Repudiation and Tampering. Defined in this document.
+- **Inference Chain (HOW)**: Contains per-inference computational proofs. Full proofs stored in ordered logs; merkle root in token. Addresses Computational Spoofing and Model Tampering. Defined in {{!I-D.draft-mw-spice-inference-chain}}.
 
 ## Session as Root of Trust
 
@@ -175,6 +177,7 @@ Session information is captured in standard OAuth token claims:
 | Claim | Purpose |
 | :--- | :--- |
 | `sub` | Session subject (human or system initiator) |
+| `sid` | Session identifier — stable across token exchanges within a session. Equals `session.session_id`. Defined as a top-level claim in {{!I-D.draft-mw-spice-actor-chain}} |
 | `jti` | Token identifier (unique per token exchange) |
 | `iat` | Session start time |
 | `exp` | Session expiry time |
@@ -196,7 +199,7 @@ The intent chain is defined in this document. Key properties:
 
 - Contains AI agents AND filters
 - Tracks content production and transformation
-- Merkle root in token; full chain in ordered logs
+- merkle root in token; full chain in ordered logs
 - Addresses Repudiation and Tampering
 
 ## STRIDE Threat Model Coverage
@@ -204,7 +207,7 @@ The intent chain is defined in this document. Key properties:
 | Threat | Mitigation | Component |
 | :--- | :--- | :--- |
 | **S** - Spoofing | Cryptographic identity, signed chain entries | Actor Chain |
-| **T** - Tampering | Merkle tree integrity, append-only logs | Intent Chain |
+| **T** - Tampering | merkle tree integrity, append-only logs | Intent Chain |
 | **R** - Repudiation | Signed delegation (Actor) + Signed outputs (Intent) | Both |
 | **I** - Information Disclosure | Selective disclosure (SD-JWT) | Both (optional) |
 | **D** - Denial of Service | Session expiry, rate limits | Session + Infrastructure |
@@ -429,13 +432,13 @@ User session: sess-uuid-12345
 
 All intent chain entries share `session_id: "sess-uuid-12345"` regardless of which token exchange produced them. The `session_id` is carried forward during each token exchange as part of the `session` claim. During forensic verification, the investigator retrieves all entries for a `session_id` to reconstruct the complete content journey.
 
-## Merkle Tree Construction
+## merkle Tree Construction
 
 The merkle tree is constructed from ordered log entries. Leaf nodes are the SHA-256 hashes of canonically serialized intent chain entries. Internal nodes are the SHA-256 hash of the concatenation of their two child hashes. When a level has an odd number of nodes, the last node is promoted to the next level.
 
 See Appendix A for a visual depiction and reference construction algorithm.
 
-## Merkle Root in Token
+## merkle Root in Token
 
 Only the merkle root is included in the OAuth token:
 
@@ -449,7 +452,7 @@ Only the merkle root is included in the OAuth token:
 
 | Field | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
-| `intent_root` | string | REQUIRED | Merkle root hash of intent chain |
+| `intent_root` | string | REQUIRED | merkle root hash of intent chain |
 | `intent_alg` | string | OPTIONAL | Hash algorithm (default: sha256) |
 | `intent_registry` | string | REQUIRED | URI of intent registry for proof retrieval |
 
@@ -465,6 +468,7 @@ The complete token combines session, actor chain, and intent chain:
   "sub": "user-alice",
   "aud": "https://api.example.com",
   "jti": "tok-aaa-12345",
+  "sid": "sess-uuid-12345",
   "iat": 1700000000,
   "exp": 1700003600,
 
@@ -480,18 +484,12 @@ The complete token combines session, actor chain, and intent chain:
     {
       "sub": "spiffe://example.com/agent/orchestrator",
       "iss": "https://auth.example.com",
-      "iat": 1700000010,
-      "scope": "ticket:*",
-      "chain_digest": "sha256:aaa...",
-      "chain_sig": "eyJhbGciOiJFUzI1NiIs..."
+      "iat": 1700000010
     },
     {
       "sub": "spiffe://example.com/agent/support",
       "iss": "https://auth.example.com",
-      "iat": 1700000030,
-      "scope": "ticket:create",
-      "chain_digest": "sha256:bbb...",
-      "chain_sig": "eyJhbGciOiJFUzI1NiIs..."
+      "iat": 1700000030
     }
   ],
 
@@ -507,7 +505,8 @@ The complete token combines session, actor chain, and intent chain:
 
 | Claim | Type | Description |
 | :--- | :--- | :--- |
-| `session.session_id` | string | Stable identifier for the end-user interaction, assigned by the AS on first token issuance and carried forward during subsequent token exchanges |
+| `sid` | string | Session identifier — stable across token exchanges. Equals `session.session_id`. Defined as a top-level claim in {{!I-D.draft-mw-spice-actor-chain}} |
+| `session.session_id` | string | Stable identifier for the end-user interaction, assigned by the AS on first token issuance and carried forward during subsequent token exchanges. MUST equal the top-level `sid` claim |
 | `session.type` | string | Session type: `human_initiated`, `system_initiated`, `scheduled` |
 | `session.initiator` | string | Identity of session initiator |
 | `session.approval_ref` | string | Reference to approval record |
@@ -521,7 +520,7 @@ Defined in {{!I-D.draft-mw-spice-actor-chain}}.
 
 | Claim | Type | Description |
 | :--- | :--- | :--- |
-| `intent_root` | string | Merkle root hash of intent chain |
+| `intent_root` | string | merkle root hash of intent chain |
 | `intent_alg` | string | Hash algorithm used (default: sha256) |
 | `intent_registry` | string | URI for retrieving full chain or proofs (REQUIRED) |
 
@@ -540,8 +539,8 @@ Defined in {{!I-D.draft-mw-spice-actor-chain}}.
   "actor_chain": [
     {
       "sub": "spiffe://example.com/agent/A",
-      "iat": 1700000010,
-      "chain_sig": "..."
+      "iss": "https://auth.example.com",
+      "iat": 1700000010
     }
   ]
 }
@@ -636,7 +635,7 @@ When a dispute arises (e.g., "Agent A did not produce that harmful output"):
 4. Check `input_hash` of Agent A's entry to verify what Agent A received as input.
 5. If Agent A's output was modified by a downstream filter, the filter's entry shows `input_hash` matching Agent A's `output_hash` and a different `output_hash` — proving the filter made the change, not Agent A.
 
-### Single Entry Verification (Merkle Proof)
+### Single Entry Verification (merkle Proof)
 
 To verify a single entry without fetching the full chain:
 
@@ -852,7 +851,7 @@ The intent chain claims are designed for consumption by policy engines such as O
 | Threat | Mitigation | Mechanism |
 | :--- | :--- | :--- |
 | **Spoofing** | Cryptographic identity | Actor chain, SPIFFE IDs |
-| **Tampering** | Merkle tree integrity | Append-only logs, merkle root in JWT |
+| **Tampering** | merkle tree integrity | Append-only logs, merkle root in JWT |
 | **Repudiation** | Signed outputs | `intent_sig` on agent and filter entries |
 | **Information Disclosure** | Selective disclosure | SD-JWT, content hashes not content |
 | **Denial of Service** | Session lifecycle | Expiry, rate limits |
@@ -893,6 +892,8 @@ The intent chain stores SHA-256 hashes of content, not the content itself. This 
 - **Reduced log size**: Hashes are fixed-size regardless of content size.
 - **Privacy by default**: Content is not exposed through the intent chain; access to the original content requires separate authorization.
 
+> **Pre-image resistance caveat**: SHA-256 is pre-image resistant for arbitrary-length inputs, but short, low-entropy content (e.g., a 16-digit account number, a boolean flag, or a short enumerated value) may be vulnerable to brute-force guessing. An attacker who knows the hash and the input domain can enumerate all possible inputs and find the one that matches. Deployments handling short, structured content SHOULD salt content before hashing or use SD-JWT to selectively redact content hashes from specific verifiers.
+
 # Implementation Guidance
 
 ## Intent Registry Implementation
@@ -902,13 +903,26 @@ The intent registry stores immutable intent chain entries. Recommended propertie
 - Append-only log structure
 - Partitioned by `session.session_id` for isolation
 - Configurable retention period
-- Merkle root computation triggered on append or at token exchange time
+- merkle root computation triggered on append or at token exchange time
+
+A federated IAM/IdM platform (e.g., Keycloak, Microsoft Entra, Okta, PingFederate) MAY host the intent registry alongside the Actor Chain Registry ({{!I-D.draft-mw-spice-actor-chain}}), since the Authorization Server already mediates token exchanges and can append intent chain entries as a side-effect. Most enterprise IAM/IdM platforms support configurable data stores that can be configured for append-only semantics — see {{!I-D.draft-mw-spice-actor-chain}} Section "Registry Hosting" for detailed requirements.
+
+## Multi-AS Deployments
+
+In deployments involving multiple Authorization Servers (e.g., federated enterprise environments where different ASes serve different organizational domains), the intent registry is shared across all participating ASes. Each AS appends intent chain entries to the same session-partitioned registry, identified by the `sid` claim carried in the token. This works without coordination between ASes because:
+
+- The `sid` value is established at session initiation and carried forward unchanged through all token exchanges.
+- Each AS appends entries atomically under the session's `sid` partition.
+- The merkle root is recomputed at each token exchange time over all entries accumulated so far (by any AS).
+- The resulting `intent_root` in the token therefore differs at each hop — each successive AS produces a larger merkle root reflecting the growing chain. This is expected behavior: a growing root is the normal consequence of an append-only chain and indicates that additional intent entries have been recorded.
+
+This enables cross-domain content provenance tracking without requiring ASes to share keys or coordinate directly — the session partition and append-only log semantics provide the necessary consistency.
 
 ## Scalability Considerations
 
 - **Log Partitioning**: Session-based partitioning ensures that intent chains for different sessions are isolated and can be processed in parallel.
-- **Merkle Root Caching**: Computed merkle roots SHOULD be cached to avoid recomputation on every token exchange.
-- **Proof Materialization**: Merkle proofs for recent entries SHOULD be pre-computed and cached for O(1) retrieval.
+- **merkle Root Caching**: Computed merkle roots SHOULD be cached to avoid recomputation on every token exchange.
+- **Proof Materialization**: merkle proofs for recent entries SHOULD be pre-computed and cached for O(1) retrieval.
 
 ## Operational Recommendations
 
@@ -916,18 +930,29 @@ The intent registry stores immutable intent chain entries. Recommended propertie
 - **Monitoring**: Operators SHOULD monitor intent chain append latency and merkle root computation time.
 - **Backup**: Intent chain logs SHOULD be replicated across availability zones for durability.
 
-# Design Rationale: Merkle Root in Token
+## Registry Availability
 
-The intent chain uses a Merkle root in the token rather than embedding the full chain inline. The following table summarizes the trade-offs:
+Intent registry unavailability does not affect data-plane operation — the token's AS-signed `intent_root` is sufficient for request-time policy decisions (e.g., "intent chain coverage required"). Per-entry forensic verification is deferred to the audit plane and is not required on the hot path.
+
+However, if the registry is permanently lost, forensic verification becomes impossible. Deployments SHOULD:
+
+- Replicate intent registry entries across availability zones.
+- Use append-only log services designed for high durability (e.g., SCITT transparency logs).
+- Retain archived tokens (containing `intent_root`) separately from intent chain entries, so that merkle root commitments survive independently of the registry.
+- Define a fail-mode policy: **fail-closed** (reject tokens whose intent chains cannot be verified) for high-risk operations, or **fail-open** (accept the AS-signed token and log the verification gap) for low-risk operations.
+
+# Design Rationale: merkle Root in Token
+
+The intent chain uses a merkle root in the token rather than embedding the full chain inline. The following table summarizes the trade-offs:
 
 | Approach | Token Size | Verification | Privacy | Selective Verify |
 | :--- | :--- | :--- | :--- | :--- |
 | **A. Full chain in token** | O(n) — grows per entry | Inline, zero latency | Poor — all entries exposed | All-or-nothing |
-| **B. Merkle root in token** | O(1) — ~64 bytes | O(log n) per entry | Good — selective disclosure | Single-entry proofs |
+| **B. merkle root in token** | O(1) — ~64 bytes | O(log n) per entry | Good — selective disclosure | Single-entry proofs |
 | **C. Simple hash of chain** | O(1) — ~64 bytes | O(n) — must rehash all | Good — external storage | Must verify all |
 | **D. No provenance in token** | Zero overhead | External lookup | Best — nothing in token | Any pattern |
 
-Approach B is chosen because intent chains can contain 20-50+ entries, making inline embedding impractical for data-plane proxies. The Merkle tree enables O(log n) selective verification of individual entries and provides cryptographic binding between the token and the registry. The actor chain ({{!I-D.draft-mw-spice-actor-chain}}) uses approach A because delegation chains are small (typically 3-5 entries) and every Relying Party needs the full delegation path.
+Approach B is chosen because intent chains can contain 20-50+ entries, making inline embedding impractical for data-plane proxies. The merkle tree enables O(log n) selective verification of individual entries and provides cryptographic binding between the token and the registry. The actor chain ({{!I-D.draft-mw-spice-actor-chain}}) uses approach A because delegation chains are small (typically 3-5 entries) and every Relying Party needs the full delegation path.
 
 # Audit Procedures
 
@@ -946,7 +971,7 @@ Full two-chain audit is RECOMMENDED for regulatory submissions, dispute resoluti
 This document requests registration of the following claims in the "JSON Web Token Claims" registry established by {{!RFC7519}}:
 
 - **Claim Name**: `intent_root`
-- **Claim Description**: Merkle root hash of the intent chain for content provenance verification.
+- **Claim Description**: merkle root hash of the intent chain for content provenance verification.
 - **Change Controller**: IETF
 - **Specification Document(s)**: [this document]
 
@@ -965,7 +990,7 @@ This document requests registration of the following claims in the "JSON Web Tok
 This document requests registration of the following claims in the "CBOR Web Token (CWT) Claims" registry established by {{!RFC8392}}:
 
 - **Claim Name**: `intent_root`
-- **Claim Description**: Merkle root hash of the intent chain.
+- **Claim Description**: merkle root hash of the intent chain.
 - **CBOR Key**: TBD (e.g., 50)
 - **Claim Type**: tstr
 - **Change Controller**: IETF
@@ -1042,7 +1067,7 @@ This document requests registration of the following claims in the "CBOR Web Tok
   <seriesInfo name="RFC" value="8392"/>
 </reference>
 
-# Merkle Tree Construction Details
+# merkle Tree Construction Details
 
 ## Tree Structure
 

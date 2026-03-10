@@ -5,12 +5,12 @@
 SPICE                                                        R. Krishnan
 Internet-Draft                                       JPMorgan Chase & Co
 Intended status: Informational                                 A. Prasad
-Expires: 9 September 2026                                         Oracle
+Expires: 10 September 2026                                        Oracle
                                                                 D. Lopez
                                                               Telefonica
                                                             S. Addepalli
                                                                   Aryaka
-                                                            8 March 2026
+                                                            9 March 2026
 
 
      Cryptographically Verifiable Intent Chain for AI Agent Content
@@ -53,12 +53,12 @@ Status of This Memo
 
 
 
-Krishnan, et al.        Expires 9 September 2026                [Page 1]
+Krishnan, et al.        Expires 10 September 2026               [Page 1]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
-   This Internet-Draft will expire on 9 September 2026.
+   This Internet-Draft will expire on 10 September 2026.
 
 Copyright Notice
 
@@ -89,83 +89,83 @@ Table of Contents
      3.5.  STRIDE Threat Model Coverage  . . . . . . . . . . . . . .   8
    4.  Intent Chain Definition . . . . . . . . . . . . . . . . . . .   9
      4.1.  Entry Types . . . . . . . . . . . . . . . . . . . . . . .   9
-     4.2.  Non-Deterministic Entries . . . . . . . . . . . . . . . .   9
-     4.3.  Deterministic Entries . . . . . . . . . . . . . . . . . .  10
-     4.4.  Entry Structure . . . . . . . . . . . . . . . . . . . . .  11
+     4.2.  Non-Deterministic Entries . . . . . . . . . . . . . . . .  10
+     4.3.  Deterministic Entries . . . . . . . . . . . . . . . . . .  11
+     4.4.  Entry Structure . . . . . . . . . . . . . . . . . . . . .  12
        4.4.1.  intent_digest Computation . . . . . . . . . . . . . .  12
    5.  Storage Architecture  . . . . . . . . . . . . . . . . . . . .  13
      5.1.  Intent Registry (Ordered Logs)  . . . . . . . . . . . . .  13
        5.1.1.  Relationship Between session_id and jti . . . . . . .  14
-     5.2.  Merkle Tree Construction  . . . . . . . . . . . . . . . .  15
-     5.3.  Merkle Root in Token  . . . . . . . . . . . . . . . . . .  15
-   6.  Token Structure . . . . . . . . . . . . . . . . . . . . . . .  15
-     6.1.  Combined Token Format . . . . . . . . . . . . . . . . . .  15
-     6.2.  Claim Definitions . . . . . . . . . . . . . . . . . . . .  16
+     5.2.  merkle Tree Construction  . . . . . . . . . . . . . . . .  15
+     5.3.  merkle Root in Token  . . . . . . . . . . . . . . . . . .  15
+   6.  Token Structure . . . . . . . . . . . . . . . . . . . . . . .  16
+     6.1.  Combined Token Format . . . . . . . . . . . . . . . . . .  16
+     6.2.  Claim Definitions . . . . . . . . . . . . . . . . . . . .  17
        6.2.1.  Session Claims  . . . . . . . . . . . . . . . . . . .  17
-       6.2.2.  Actor Chain Claims  . . . . . . . . . . . . . . . . .  17
-       6.2.3.  Intent Chain Claims . . . . . . . . . . . . . . . . .  17
+       6.2.2.  Actor Chain Claims  . . . . . . . . . . . . . . . . .  18
+       6.2.3.  Intent Chain Claims . . . . . . . . . . . . . . . . .  18
      6.3.  Examples  . . . . . . . . . . . . . . . . . . . . . . . .  18
        6.3.1.  Minimal Token (Actor Chain Only)  . . . . . . . . . .  18
 
 
 
-Krishnan, et al.        Expires 9 September 2026                [Page 2]
+Krishnan, et al.        Expires 10 September 2026               [Page 2]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
-       6.3.2.  Minimal Token (Intent Chain Only) . . . . . . . . . .  18
-       6.3.3.  Full Token (Both Chains)  . . . . . . . . . . . . . .  18
-   7.  Verification Procedures . . . . . . . . . . . . . . . . . . .  18
-     7.1.  Request-Time Policy Checks  . . . . . . . . . . . . . . .  18
-     7.2.  Forensic Verification . . . . . . . . . . . . . . . . . .  19
-       7.2.1.  Token Archival  . . . . . . . . . . . . . . . . . . .  19
-       7.2.2.  Full Chain Verification . . . . . . . . . . . . . . .  20
-       7.2.3.  Cross-Chain Correlation . . . . . . . . . . . . . . .  20
-       7.2.4.  Dispute Resolution Workflow . . . . . . . . . . . . .  21
-       7.2.5.  Single Entry Verification (Merkle Proof)  . . . . . .  21
-   8.  Operational Flows . . . . . . . . . . . . . . . . . . . . . .  22
-     8.1.  Intent Chain Construction . . . . . . . . . . . . . . . .  22
-     8.2.  Token Exchange Integration  . . . . . . . . . . . . . . .  23
-     8.3.  Request-Time Check at Relying Party . . . . . . . . . . .  24
-   9.  Policy Enforcement  . . . . . . . . . . . . . . . . . . . . .  25
-     9.1.  Policy Examples . . . . . . . . . . . . . . . . . . . . .  25
-       9.1.1.  Require All Outputs Filtered  . . . . . . . . . . . .  25
-       9.1.2.  Require Non-Deterministic Filter for AI Outputs . . .  26
-       9.1.3.  Verify Specific Transformation Applied  . . . . . . .  26
-     9.2.  Integration with Policy Engines . . . . . . . . . . . . .  26
-   10. Security Considerations . . . . . . . . . . . . . . . . . . .  27
-     10.1.  STRIDE Analysis  . . . . . . . . . . . . . . . . . . . .  27
-     10.2.  Signing Requirements by Entry Type . . . . . . . . . . .  27
-     10.3.  Replay Protection  . . . . . . . . . . . . . . . . . . .  28
-     10.4.  Chain Integrity  . . . . . . . . . . . . . . . . . . . .  28
-     10.5.  Credential Isolation . . . . . . . . . . . . . . . . . .  28
-   11. Privacy Considerations  . . . . . . . . . . . . . . . . . . .  28
-     11.1.  Selective Disclosure . . . . . . . . . . . . . . . . . .  28
-     11.2.  Content Hash vs Content Storage  . . . . . . . . . . . .  29
-   12. Implementation Guidance . . . . . . . . . . . . . . . . . . .  29
-     12.1.  Intent Registry Implementation . . . . . . . . . . . . .  29
-     12.2.  Scalability Considerations . . . . . . . . . . . . . . .  29
-     12.3.  Operational Recommendations  . . . . . . . . . . . . . .  29
-   13. Design Rationale: Merkle Root in Token  . . . . . . . . . . .  30
-   14. Audit Procedures  . . . . . . . . . . . . . . . . . . . . . .  30
-     14.1.  Cross-Chain Binding  . . . . . . . . . . . . . . . . . .  30
-   15. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  31
-     15.1.  JWT Claim Registration . . . . . . . . . . . . . . . . .  31
-     15.2.  CWT Claim Registration . . . . . . . . . . . . . . . . .  31
-   Appendix A.  Merkle Tree Construction Details . . . . . . . . . .  32
-     A.1.  Tree Structure  . . . . . . . . . . . . . . . . . . . . .  32
-     A.2.  Reference Construction Algorithm  . . . . . . . . . . . .  33
-   Appendix B.  Complete Token Examples  . . . . . . . . . . . . . .  33
-     B.1.  Full Governance Token . . . . . . . . . . . . . . . . . .  33
-     B.2.  Corresponding Intent Chain Log Entries  . . . . . . . . .  34
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  36
+       6.3.2.  Minimal Token (Intent Chain Only) . . . . . . . . . .  19
+       6.3.3.  Full Token (Both Chains)  . . . . . . . . . . . . . .  19
+   7.  Verification Procedures . . . . . . . . . . . . . . . . . . .  19
+     7.1.  Request-Time Policy Checks  . . . . . . . . . . . . . . .  19
+     7.2.  Forensic Verification . . . . . . . . . . . . . . . . . .  20
+       7.2.1.  Token Archival  . . . . . . . . . . . . . . . . . . .  20
+       7.2.2.  Full Chain Verification . . . . . . . . . . . . . . .  21
+       7.2.3.  Cross-Chain Correlation . . . . . . . . . . . . . . .  21
+       7.2.4.  Dispute Resolution Workflow . . . . . . . . . . . . .  22
+       7.2.5.  Single Entry Verification (merkle Proof)  . . . . . .  22
+   8.  Operational Flows . . . . . . . . . . . . . . . . . . . . . .  23
+     8.1.  Intent Chain Construction . . . . . . . . . . . . . . . .  23
+     8.2.  Token Exchange Integration  . . . . . . . . . . . . . . .  24
+     8.3.  Request-Time Check at Relying Party . . . . . . . . . . .  25
+   9.  Policy Enforcement  . . . . . . . . . . . . . . . . . . . . .  26
+     9.1.  Policy Examples . . . . . . . . . . . . . . . . . . . . .  26
+       9.1.1.  Require All Outputs Filtered  . . . . . . . . . . . .  26
+       9.1.2.  Require Non-Deterministic Filter for AI Outputs . . .  27
+       9.1.3.  Verify Specific Transformation Applied  . . . . . . .  27
+     9.2.  Integration with Policy Engines . . . . . . . . . . . . .  27
+   10. Security Considerations . . . . . . . . . . . . . . . . . . .  28
+     10.1.  STRIDE Analysis  . . . . . . . . . . . . . . . . . . . .  28
+     10.2.  Signing Requirements by Entry Type . . . . . . . . . . .  28
+     10.3.  Replay Protection  . . . . . . . . . . . . . . . . . . .  29
+     10.4.  Chain Integrity  . . . . . . . . . . . . . . . . . . . .  29
+     10.5.  Credential Isolation . . . . . . . . . . . . . . . . . .  29
+   11. Privacy Considerations  . . . . . . . . . . . . . . . . . . .  29
+     11.1.  Selective Disclosure . . . . . . . . . . . . . . . . . .  29
+     11.2.  Content Hash vs Content Storage  . . . . . . . . . . . .  30
+   12. Implementation Guidance . . . . . . . . . . . . . . . . . . .  30
+     12.1.  Intent Registry Implementation . . . . . . . . . . . . .  30
+     12.2.  Multi-AS Deployments . . . . . . . . . . . . . . . . . .  31
+     12.3.  Scalability Considerations . . . . . . . . . . . . . . .  31
+     12.4.  Operational Recommendations  . . . . . . . . . . . . . .  31
+     12.5.  Registry Availability  . . . . . . . . . . . . . . . . .  32
+   13. Design Rationale: merkle Root in Token  . . . . . . . . . . .  32
+   14. Audit Procedures  . . . . . . . . . . . . . . . . . . . . . .  33
+     14.1.  Cross-Chain Binding  . . . . . . . . . . . . . . . . . .  33
+   15. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  34
+     15.1.  JWT Claim Registration . . . . . . . . . . . . . . . . .  34
+     15.2.  CWT Claim Registration . . . . . . . . . . . . . . . . .  34
+   Appendix A.  merkle Tree Construction Details . . . . . . . . . .  35
+     A.1.  Tree Structure  . . . . . . . . . . . . . . . . . . . . .  35
+     A.2.  Reference Construction Algorithm  . . . . . . . . . . . .  36
+   Appendix B.  Complete Token Examples  . . . . . . . . . . . . . .  36
+     B.1.  Full Governance Token . . . . . . . . . . . . . . . . . .  36
+     B.2.  Corresponding Intent Chain Log Entries  . . . . . . . . .  37
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  39
 
 
 
-
-
-Krishnan, et al.        Expires 9 September 2026                [Page 3]
+Krishnan, et al.        Expires 10 September 2026               [Page 3]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -221,7 +221,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026                [Page 4]
+Krishnan, et al.        Expires 10 September 2026               [Page 4]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -261,11 +261,11 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
     |             | Plane | inline     |          | Party (real-time |
     |             |       |            |          | authorization)   |
     +-------------+-------+------------+----------+------------------+
-    | *Intent*    | Audit | Merkle     | External | Audit systems,   |
+    | *Intent*    | Audit | merkle     | External | Audit systems,   |
     |             | Plane | root only  | registry | forensic         |
     |             |       |            |          | investigators    |
     +-------------+-------+------------+----------+------------------+
-    | *Inference* | Audit | Merkle     | External | Auditors,        |
+    | *Inference* | Audit | merkle     | External | Auditors,        |
     |             | Plane | root only  | registry | compliance       |
     |             |       |            |          | systems          |
     +-------------+-------+------------+----------+------------------+
@@ -277,13 +277,15 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026                [Page 5]
+Krishnan, et al.        Expires 10 September 2026               [Page 5]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
    *  *Actor Chain Only*: Real-time authorization, access control
    *  *Intent Chain Only*: Content audit, debugging, filter validation
+   *  *Inference Chain Only*: Computational integrity verification for
+      single-agent systems
    *  *Actor + Intent*: Full content governance, dispute resolution,
       regulatory compliance
    *  *All Three*: Complete "Truth Stack" — identity, content, and
@@ -296,7 +298,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    1.  *Content Provenance*: Cryptographic proof of what each agent
        produced
    2.  *Transformation Tracking*: Record of how filters modified content
-   3.  *Tamper Evidence*: Merkle tree structure prevents undetected
+   3.  *Tamper Evidence*: merkle tree structure prevents undetected
        modification
    4.  *Efficiency*: Only merkle root in token; full chain in logs
    5.  *Scalability*: Append-only logs scale horizontally
@@ -328,20 +330,22 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
       from its input and rules.  Examples include schema validators,
       regex sanitizers, and bounds checkers.  Output can be re-derived
       for verification.
-   Intent Root:  The merkle root hash of the complete intent chain,
-      included in the OAuth token.
 
 
 
-Krishnan, et al.        Expires 9 September 2026                [Page 6]
+Krishnan, et al.        Expires 10 September 2026               [Page 6]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
+   Intent Root:  The merkle root hash of the complete intent chain,
+      included in the OAuth token.
    Intent Registry:  An append-only ordered log storing the full intent
       chain entries, partitioned by session.
-   Actor Registry:  A database storing mutable state including
-      capabilities and revocation status.
+   Actor Chain Registry:  The append-only ordered log storing the full
+      per-actor signature evidence for the actor chain, as defined in
+      {{!I-D.draft-mw-spice-actor-chain}}. Referenced by the
+      actor_chain_registry claim in the token.
 
 3.  Architecture Overview
 
@@ -358,6 +362,10 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    *  *Intent Chain (WHAT)*: Contains AI agents and filters.  Full chain
       stored in ordered logs; merkle root in token.  Addresses
       Repudiation and Tampering.  Defined in this document.
+   *  *Inference Chain (HOW)*: Contains per-inference computational
+      proofs.  Full proofs stored in ordered logs; merkle root in token.
+      Addresses Computational Spoofing and Model Tampering.  Defined in
+      {{!I-D.draft-mw-spice-inference-chain}}.
 
 3.2.  Session as Root of Trust
 
@@ -371,28 +379,39 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    Session information is captured in standard OAuth token claims:
 
-         +=======+==============================================+
-         | Claim | Purpose                                      |
-         +=======+==============================================+
-         | sub   | Session subject (human or system initiator)  |
-         +-------+----------------------------------------------+
-         | jti   | Token identifier (unique per token exchange) |
-         +-------+----------------------------------------------+
-         | iat   | Session start time                           |
-         +-------+----------------------------------------------+
-         | exp   | Session expiry time                          |
-         +-------+----------------------------------------------+
-
-                                 Table 3
 
 
 
 
 
-Krishnan, et al.        Expires 9 September 2026                [Page 7]
+
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026               [Page 7]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
+
+   +=======+===========================================================+
+   | Claim | Purpose                                                   |
+   +=======+===========================================================+
+   | sub   | Session subject (human or system initiator)               |
+   +-------+-----------------------------------------------------------+
+   | sid   | Session identifier — stable across token                  |
+   |       | exchanges within a session.  Equals                       |
+   |       | session.session_id.  Defined as a top-level               |
+   |       | claim in {{!I-D.draft-mw-spice-actor-chain}}              |
+   +-------+-----------------------------------------------------------+
+   | jti   | Token identifier (unique per token exchange)              |
+   +-------+-----------------------------------------------------------+
+   | iat   | Session start time                                        |
+   +-------+-----------------------------------------------------------+
+   | exp   | Session expiry time                                       |
+   +-------+-----------------------------------------------------------+
+
+                                  Table 3
 
 3.3.  Actor Chain (WHO) - Reference
 
@@ -412,7 +431,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    *  Contains AI agents AND filters
    *  Tracks content production and transformation
-   *  Merkle root in token; full chain in ordered logs
+   *  merkle root in token; full chain in ordered logs
    *  Addresses Repudiation and Tampering
 
 3.5.  STRIDE Threat Model Coverage
@@ -423,7 +442,15 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
     | *S* - Spoofing    | Cryptographic identity,   | Actor Chain    |
     |                   | signed chain entries      |                |
     +-------------------+---------------------------+----------------+
-    | *T* - Tampering   | Merkle tree integrity,    | Intent Chain   |
+
+
+
+Krishnan, et al.        Expires 10 September 2026               [Page 8]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
+
+    | *T* - Tampering   | merkle tree integrity,    | Intent Chain   |
     |                   | append-only logs          |                |
     +-------------------+---------------------------+----------------+
     | *R* - Repudiation | Signed delegation (Actor) | Both           |
@@ -440,15 +467,6 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
     +-------------------+---------------------------+----------------+
 
                                  Table 4
-
-
-
-
-
-Krishnan, et al.        Expires 9 September 2026                [Page 8]
-
-Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
-
 
 4.  Intent Chain Definition
 
@@ -478,6 +496,16 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    entry in the ordered logs — not in the token itself, which carries
    only the merkle root regardless of entry count.
 
+
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026               [Page 9]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
+
 4.2.  Non-Deterministic Entries
 
    Non-deterministic entries record outputs from AI agents or AI-based
@@ -498,13 +526,6 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    *  input_hash and output_hash MUST be recorded and signed
 
    *Agent Output Example*:
-
-
-
-Krishnan, et al.        Expires 9 September 2026                [Page 9]
-
-Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
-
 
    {
      "type": "non_deterministic",
@@ -533,6 +554,14 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
      "intent_sig": "eyJhbGci..."
    }
 
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 10]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
+
 4.3.  Deterministic Entries
 
    Deterministic filter entries record transformations by rule-based
@@ -553,14 +582,6 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    *  rule_id and rule_hash are type-specific signed fields in the log
       entry, enabling independent re-verification
    *  Output can be re-derived by re-applying the rule to the input
-
-
-
-
-Krishnan, et al.        Expires 9 September 2026               [Page 10]
-
-Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
-
 
    *Structure*:
 
@@ -589,34 +610,17 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
      "intent_sig": "eyJhbGci..."
    }
 
-4.4.  Entry Structure
-
-   All intent chain entries share common fields:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Krishnan, et al.        Expires 9 September 2026               [Page 11]
+Krishnan, et al.        Expires 10 September 2026              [Page 11]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
+
+4.4.  Entry Structure
+
+   All intent chain entries share common fields:
 
    +===============+========+==========+==============================+
    | Field         | Type   | Required | Description                  |
@@ -663,16 +667,15 @@ intent_digest = SHA-256(canonical_json(E \ {intent_digest, intent_sig}))
    Where canonical_json follows JSON Canonicalization Scheme {{JCS}}
    (RFC 8785) to ensure deterministic serialization.
 
-   The intent_sig (when REQUIRED) is computed over the intent_digest
-   value using the agent's private key:
 
 
-
-
-Krishnan, et al.        Expires 9 September 2026               [Page 12]
+Krishnan, et al.        Expires 10 September 2026              [Page 12]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
+
+   The intent_sig (when REQUIRED) is computed over the intent_digest
+   value using the agent's private key:
 
    intent_sig = Sign(agent_key, intent_digest)
 
@@ -717,18 +720,21 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    *  Non-deterministic entries (AI agent outputs, AI-based filters)
    *  Deterministic entries (rule-based filters)
 
+
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 13]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
+
    |  Intent registry entries MUST NOT contain OAuth tokens, bearer
    |  credentials, or signing keys.  Entries contain only content
    |  hashes, metadata, agent identities, and entry-level signatures.
    |  The token references the registry via the intent_registry claim;
    |  the registry MUST NOT store or reference the token itself.
-
-
-
-Krishnan, et al.        Expires 9 September 2026               [Page 13]
-
-Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
-
 
    *Properties*:
 
@@ -765,6 +771,21 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    token exchanges, each of which produces a new token with a distinct
    jti:
 
+
+
+
+
+
+
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 14]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
+
    User session: sess-uuid-12345
 
      Token Exchange 1 (jti: "tok-aaa")
@@ -779,20 +800,13 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
        Agent B → Agent C
        Intent entries: offset 3 (filter), offset 4 (Agent C output)
 
-
-
-Krishnan, et al.        Expires 9 September 2026               [Page 14]
-
-Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
-
-
    All intent chain entries share session_id: "sess-uuid-12345"
    regardless of which token exchange produced them.  The session_id is
    carried forward during each token exchange as part of the session
    claim.  During forensic verification, the investigator retrieves all
    entries for a session_id to reconstruct the complete content journey.
 
-5.2.  Merkle Tree Construction
+5.2.  merkle Tree Construction
 
    The merkle tree is constructed from ordered log entries.  Leaf nodes
    are the SHA-256 hashes of canonically serialized intent chain
@@ -803,7 +817,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    See Appendix A for a visual depiction and reference construction
    algorithm.
 
-5.3.  Merkle Root in Token
+5.3.  merkle Root in Token
 
    Only the merkle root is included in the OAuth token:
 
@@ -813,10 +827,25 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
      "intent_registry": "https://intent-log.example.com"
    }
 
+
+
+
+
+
+
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 15]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
+
      +=================+========+==========+========================+
      | Field           | Type   | Required | Description            |
      +=================+========+==========+========================+
-     | intent_root     | string | REQUIRED | Merkle root hash of    |
+     | intent_root     | string | REQUIRED | merkle root hash of    |
      |                 |        |          | intent chain           |
      +-----------------+--------+----------+------------------------+
      | intent_alg      | string | OPTIONAL | Hash algorithm         |
@@ -837,7 +866,34 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 15]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 16]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -847,6 +903,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
      "sub": "user-alice",
      "aud": "https://api.example.com",
      "jti": "tok-aaa-12345",
+     "sid": "sess-uuid-12345",
      "iat": 1700000000,
      "exp": 1700003600,
 
@@ -862,18 +919,12 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
        {
          "sub": "spiffe://example.com/agent/orchestrator",
          "iss": "https://auth.example.com",
-         "iat": 1700000010,
-         "scope": "ticket:*",
-         "chain_digest": "sha256:aaa...",
-         "chain_sig": "eyJhbGciOiJFUzI1NiIs..."
+         "iat": 1700000010
        },
        {
          "sub": "spiffe://example.com/agent/support",
          "iss": "https://auth.example.com",
-         "iat": 1700000030,
-         "scope": "ticket:create",
-         "chain_digest": "sha256:bbb...",
-         "chain_sig": "eyJhbGciOiJFUzI1NiIs..."
+         "iat": 1700000030
        }
      ],
 
@@ -884,48 +935,43 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 6.2.  Claim Definitions
 
+6.2.1.  Session Claims
+
+   +=======================+======+===================================+
+   |Claim                  |Type  |Description                        |
+   +=======================+======+===================================+
+   |sid                    |string|Session identifier — stable across |
+   |                       |      |token exchanges.  Equals           |
+   |                       |      |session.session_id.  Defined as a  |
+   |                       |      |top-level claim in {{!I-D.draft-mw-|
+   |                       |      |spice-actor-chain}}                |
+   +-----------------------+------+-----------------------------------+
 
 
 
-
-
-
-
-
-
-Krishnan, et al.        Expires 9 September 2026               [Page 16]
+Krishnan, et al.        Expires 10 September 2026              [Page 17]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
-6.2.1.  Session Claims
+   |session.session_id     |string|Stable identifier for the end-user |
+   |                       |      |interaction, assigned by the AS on |
+   |                       |      |first token issuance and carried   |
+   |                       |      |forward during subsequent token    |
+   |                       |      |exchanges.  MUST equal the top-    |
+   |                       |      |level sid claim                    |
+   +-----------------------+------+-----------------------------------+
+   |session.type           |string|Session type: human_initiated,     |
+   |                       |      |system_initiated, scheduled        |
+   +-----------------------+------+-----------------------------------+
+   |session.initiator      |string|Identity of session initiator      |
+   +-----------------------+------+-----------------------------------+
+   |session.approval_ref   |string|Reference to approval record       |
+   +-----------------------+------+-----------------------------------+
+   |session.max_chain_depth|number|Maximum allowed delegation depth   |
+   +-----------------------+------+-----------------------------------+
 
-   +=========================+========+================================+
-   | Claim                   | Type   | Description                    |
-   +=========================+========+================================+
-   | session.session_id      | string | Stable identifier for the      |
-   |                         |        | end-user interaction,          |
-   |                         |        | assigned by the AS on          |
-   |                         |        | first token issuance and       |
-   |                         |        | carried forward during         |
-   |                         |        | subsequent token exchanges     |
-   +-------------------------+--------+--------------------------------+
-   | session.type            | string | Session type:                  |
-   |                         |        | human_initiated,               |
-   |                         |        | system_initiated,              |
-   |                         |        | scheduled                      |
-   +-------------------------+--------+--------------------------------+
-   | session.initiator       | string | Identity of session            |
-   |                         |        | initiator                      |
-   +-------------------------+--------+--------------------------------+
-   | session.approval_ref    | string | Reference to approval          |
-   |                         |        | record                         |
-   +-------------------------+--------+--------------------------------+
-   | session.max_chain_depth | number | Maximum allowed delegation     |
-   |                         |        | depth                          |
-   +-------------------------+--------+--------------------------------+
-
-                                  Table 9
+                                 Table 9
 
 6.2.2.  Actor Chain Claims
 
@@ -936,7 +982,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    +=================+========+=======================================+
    | Claim           | Type   | Description                           |
    +=================+========+=======================================+
-   | intent_root     | string | Merkle root hash of intent chain      |
+   | intent_root     | string | merkle root hash of intent chain      |
    +-----------------+--------+---------------------------------------+
    | intent_alg      | string | Hash algorithm used (default: sha256) |
    +-----------------+--------+---------------------------------------+
@@ -946,17 +992,23 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
                                  Table 10
 
-
-
-
-Krishnan, et al.        Expires 9 September 2026               [Page 17]
-
-Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
-
-
 6.3.  Examples
 
 6.3.1.  Minimal Token (Actor Chain Only)
+
+
+
+
+
+
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 18]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
 
    {
      "iss": "https://auth.example.com",
@@ -968,8 +1020,8 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
      "actor_chain": [
        {
          "sub": "spiffe://example.com/agent/A",
-         "iat": 1700000010,
-         "chain_sig": "..."
+         "iss": "https://auth.example.com",
+         "iat": 1700000010
        }
      ]
    }
@@ -1002,18 +1054,17 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    *  The content has already been produced; verifying signatures cannot
       undo it.
-
-
-
-Krishnan, et al.        Expires 9 September 2026               [Page 18]
-
-Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
-
-
    *  The Relying Party has the token, not the raw content, so it cannot
       cross-check content hashes.
    *  O(n) signature verification per request adds latency without
       improving authorization decisions.
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 19]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
 
    The Relying Party SHOULD:
 
@@ -1059,15 +1110,17 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    registry.  The intent registry stores chain entries but does not
    store the token itself.
 
+   To enable forensic analysis, tokens SHOULD be archived by one or more
+   of the following:
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 19]
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 20]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
-
-   To enable forensic analysis, tokens SHOULD be archived by one or more
-   of the following:
 
    *  *Relying Parties*: Archive tokens at the point of presentation
       (most common).
@@ -1113,17 +1166,18 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    When used together with the actor chain, forensic verification can
    answer both *WHO* and *WHAT*:
 
+   1.  For each intent chain entry of type non_deterministic: verify
+       that entry.sub appears in the actor_chain of the same token.
 
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 20]
+
+Krishnan, et al.        Expires 10 September 2026              [Page 21]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
-   1.  For each intent chain entry of type non_deterministic: verify
-       that entry.sub appears in the actor_chain of the same token.
    2.  Verify that entry.iat falls within the actor's active window
        (between the actor's own iat and the next actor's iat in the
        chain).
@@ -1148,7 +1202,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
        and a different output_hash — proving the filter made the change,
        not Agent A.
 
-7.2.5.  Single Entry Verification (Merkle Proof)
+7.2.5.  Single Entry Verification (merkle Proof)
 
    To verify a single entry without fetching the full chain:
 
@@ -1173,7 +1227,9 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 21]
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 22]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1229,7 +1285,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 22]
+Krishnan, et al.        Expires 10 September 2026              [Page 23]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1285,7 +1341,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 23]
+Krishnan, et al.        Expires 10 September 2026              [Page 24]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1341,7 +1397,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 24]
+Krishnan, et al.        Expires 10 September 2026              [Page 25]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1397,7 +1453,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 25]
+Krishnan, et al.        Expires 10 September 2026              [Page 26]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1453,7 +1509,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 26]
+Krishnan, et al.        Expires 10 September 2026              [Page 27]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1475,7 +1531,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    +===============+========================+=========================+
    | *Spoofing*    | Cryptographic identity | Actor chain, SPIFFE IDs |
    +---------------+------------------------+-------------------------+
-   | *Tampering*   | Merkle tree integrity  | Append-only logs,       |
+   | *Tampering*   | merkle tree integrity  | Append-only logs,       |
    |               |                        | merkle root in JWT      |
    +---------------+------------------------+-------------------------+
    | *Repudiation* | Signed outputs         | intent_sig on agent and |
@@ -1509,7 +1565,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 27]
+Krishnan, et al.        Expires 10 September 2026              [Page 28]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1565,7 +1621,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 28]
+Krishnan, et al.        Expires 10 September 2026              [Page 29]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1583,6 +1639,15 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
       chain; access to the original content requires separate
       authorization.
 
+   |  *Pre-image resistance caveat*: SHA-256 is pre-image resistant for
+   |  arbitrary-length inputs, but short, low-entropy content (e.g., a
+   |  16-digit account number, a boolean flag, or a short enumerated
+   |  value) may be vulnerable to brute-force guessing.  An attacker who
+   |  knows the hash and the input domain can enumerate all possible
+   |  inputs and find the one that matches.  Deployments handling short,
+   |  structured content SHOULD salt content before hashing or use SD-
+   |  JWT to selectively redact content hashes from specific verifiers.
+
 12.  Implementation Guidance
 
 12.1.  Intent Registry Implementation
@@ -1593,20 +1658,68 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    *  Append-only log structure
    *  Partitioned by session.session_id for isolation
    *  Configurable retention period
-   *  Merkle root computation triggered on append or at token exchange
+   *  merkle root computation triggered on append or at token exchange
       time
 
-12.2.  Scalability Considerations
+   A federated IAM/IdM platform (e.g., Keycloak, Microsoft Entra, Okta,
+   PingFederate) MAY host the intent registry alongside the Actor Chain
+   Registry ({{!I-D.draft-mw-spice-actor-chain}}), since the
+   Authorization Server already mediates token exchanges and can append
+   intent chain entries as a side-effect.  Most enterprise IAM/IdM
+   platforms support configurable data stores that can be configured for
+   append-only semantics — see {{!I-D.draft-mw-spice-actor-chain}}
+   Section "Registry Hosting" for detailed requirements.
+
+
+
+
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 30]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
+
+12.2.  Multi-AS Deployments
+
+   In deployments involving multiple Authorization Servers (e.g.,
+   federated enterprise environments where different ASes serve
+   different organizational domains), the intent registry is shared
+   across all participating ASes.  Each AS appends intent chain entries
+   to the same session-partitioned registry, identified by the sid claim
+   carried in the token.  This works without coordination between ASes
+   because:
+
+   *  The sid value is established at session initiation and carried
+      forward unchanged through all token exchanges.
+   *  Each AS appends entries atomically under the session's sid
+      partition.
+   *  The merkle root is recomputed at each token exchange time over all
+      entries accumulated so far (by any AS).
+   *  The resulting intent_root in the token therefore differs at each
+      hop — each successive AS produces a larger merkle root reflecting
+      the growing chain.  This is expected behavior: a growing root is
+      the normal consequence of an append-only chain and indicates that
+      additional intent entries have been recorded.
+
+   This enables cross-domain content provenance tracking without
+   requiring ASes to share keys or coordinate directly — the session
+   partition and append-only log semantics provide the necessary
+   consistency.
+
+12.3.  Scalability Considerations
 
    *  *Log Partitioning*: Session-based partitioning ensures that intent
       chains for different sessions are isolated and can be processed in
       parallel.
-   *  *Merkle Root Caching*: Computed merkle roots SHOULD be cached to
+   *  *merkle Root Caching*: Computed merkle roots SHOULD be cached to
       avoid recomputation on every token exchange.
-   *  *Proof Materialization*: Merkle proofs for recent entries SHOULD
+   *  *Proof Materialization*: merkle proofs for recent entries SHOULD
       be pre-computed and cached for O(1) retrieval.
 
-12.3.  Operational Recommendations
+12.4.  Operational Recommendations
 
    *  *Retention Policy*: Intent chain logs SHOULD be retained for the
       maximum audit window required by the deployment's regulatory
@@ -1620,17 +1733,66 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-
-Krishnan, et al.        Expires 9 September 2026               [Page 29]
+Krishnan, et al.        Expires 10 September 2026              [Page 31]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
-13.  Design Rationale: Merkle Root in Token
+12.5.  Registry Availability
 
-   The intent chain uses a Merkle root in the token rather than
+   Intent registry unavailability does not affect data-plane operation —
+   the token's AS-signed intent_root is sufficient for request-time
+   policy decisions (e.g., "intent chain coverage required").  Per-entry
+   forensic verification is deferred to the audit plane and is not
+   required on the hot path.
+
+   However, if the registry is permanently lost, forensic verification
+   becomes impossible.  Deployments SHOULD:
+
+   *  Replicate intent registry entries across availability zones.
+   *  Use append-only log services designed for high durability (e.g.,
+      SCITT transparency logs).
+   *  Retain archived tokens (containing intent_root) separately from
+      intent chain entries, so that merkle root commitments survive
+      independently of the registry.
+   *  Define a fail-mode policy: *fail-closed* (reject tokens whose
+      intent chains cannot be verified) for high-risk operations, or
+      *fail-open* (accept the AS-signed token and log the verification
+      gap) for low-risk operations.
+
+13.  Design Rationale: merkle Root in Token
+
+   The intent chain uses a merkle root in the token rather than
    embedding the full chain inline.  The following table summarizes the
    trade-offs:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 32]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
 
    +============+=========+==============+============+================+
    | Approach   |Token    | Verification | Privacy    | Selective      |
@@ -1641,10 +1803,9 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    | token*     |per      |              | exposed    |                |
    |            |entry    |              |            |                |
    +------------+---------+--------------+------------+----------------+
-   | *B.        |O(1) —   | O(log n) per | Good —     | Single-entry   |
-   | Merkle     |~64      | entry        | selective  | proofs         |
-   | root in    |bytes    |              | disclosure |                |
-   | token*     |         |              |            |                |
+   | *B. merkle |O(1) —   | O(log n) per | Good —     | Single-entry   |
+   | root in    |~64      | entry        | selective  | proofs         |
+   | token*     |bytes    |              | disclosure |                |
    +------------+---------+--------------+------------+----------------+
    | *C.        |O(1) —   | O(n) — must  | Good —     | Must verify    |
    | Simple     |~64      | rehash all   | external   | all            |
@@ -1660,7 +1821,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    Approach B is chosen because intent chains can contain 20-50+
    entries, making inline embedding impractical for data-plane proxies.
-   The Merkle tree enables O(log n) selective verification of individual
+   The merkle tree enables O(log n) selective verification of individual
    entries and provides cryptographic binding between the token and the
    registry.  The actor chain ({{!I-D.draft-mw-spice-actor-chain}}) uses
    approach A because delegation chains are small (typically 3-5
@@ -1673,15 +1834,6 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    When auditing actor and intent chains together, the auditor performs
    cross-chain binding checks:
 
-
-
-
-
-Krishnan, et al.        Expires 9 September 2026               [Page 30]
-
-Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
-
-
    For each intent chain entry of type non_deterministic: verify that
    entry.sub appears in actor_chain.  Verify that entry.iat falls within
    the actor's active window.  A mismatch indicates an unregistered
@@ -1689,6 +1841,14 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    Full two-chain audit is RECOMMENDED for regulatory submissions,
    dispute resolution, and post-breach forensic analysis.
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 33]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
 
 15.  IANA Considerations
 
@@ -1699,7 +1859,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    *  *Claim Name*: intent_root
 
-   *  *Claim Description*: Merkle root hash of the intent chain for
+   *  *Claim Description*: merkle root hash of the intent chain for
       content provenance verification.
 
    *  *Change Controller*: IETF
@@ -1731,20 +1891,20 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    *  *Claim Name*: intent_root
 
-
-
-Krishnan, et al.        Expires 9 September 2026               [Page 31]
-
-Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
-
-
-   *  *Claim Description*: Merkle root hash of the intent chain.
+   *  *Claim Description*: merkle root hash of the intent chain.
 
    *  *CBOR Key*: TBD (e.g., 50)
 
    *  *Claim Type*: tstr
 
    *  *Change Controller*: IETF
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 34]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
 
    *  *Specification Document(s)*: [this document]
 
@@ -1774,25 +1934,9 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    *  *Specification Document(s)*: [this document]
 
-Appendix A.  Merkle Tree Construction Details
+Appendix A.  merkle Tree Construction Details
 
 A.1.  Tree Structure
-
-
-
-
-
-
-
-
-
-
-
-
-Krishnan, et al.        Expires 9 September 2026               [Page 32]
-
-Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
-
 
                        intent_root (in JWT)
                              |
@@ -1808,6 +1952,15 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
        |       |           |   |       |       |
     Entry0  Entry1     Entry2 Entry3 Entry4  Entry5
     (non-det)(non-det) (det)  (non-det)(det) (non-det)
+
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 35]
+
+Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
+
 
 A.2.  Reference Construction Algorithm
 
@@ -1845,7 +1998,22 @@ B.1.  Full Governance Token
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 33]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Krishnan, et al.        Expires 10 September 2026              [Page 36]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1901,7 +2069,7 @@ B.2.  Corresponding Intent Chain Log Entries
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 34]
+Krishnan, et al.        Expires 10 September 2026              [Page 37]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1957,7 +2125,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 35]
+Krishnan, et al.        Expires 10 September 2026              [Page 38]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -2013,7 +2181,7 @@ Authors' Addresses
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 36]
+Krishnan, et al.        Expires 10 September 2026              [Page 39]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -2069,4 +2237,4 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 9 September 2026               [Page 37]
+Krishnan, et al.        Expires 10 September 2026              [Page 40]
