@@ -5,12 +5,12 @@
 SPICE                                                        R. Krishnan
 Internet-Draft                                       JPMorgan Chase & Co
 Intended status: Informational                                 A. Prasad
-Expires: 11 September 2026                                        Oracle
+Expires: 19 September 2026                                        Oracle
                                                                 D. Lopez
                                                               Telefonica
                                                             S. Addepalli
                                                                   Aryaka
-                                                           10 March 2026
+                                                           18 March 2026
 
 
      Cryptographically Verifiable Intent Chain for AI Agent Content
@@ -29,7 +29,7 @@ Abstract
    stages including AI agents and filters.  The intent chain provides a
    cryptographically verifiable, tamper-evident record of this content
    journey.  The full intent chain is stored as ordered logs, with only
-   the merkle root included in the OAuth token for efficiency.
+   the Merkle root included in the OAuth token for efficiency.
 
    Together, the actor chain and intent chain provide complete
    governance for autonomous AI agent systems, addressing Spoofing,
@@ -53,12 +53,12 @@ Status of This Memo
 
 
 
-Krishnan, et al.        Expires 11 September 2026               [Page 1]
+Krishnan, et al.        Expires 19 September 2026               [Page 1]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
-   This Internet-Draft will expire on 11 September 2026.
+   This Internet-Draft will expire on 19 September 2026.
 
 Copyright Notice
 
@@ -96,8 +96,8 @@ Table of Contents
    5.  Storage Architecture  . . . . . . . . . . . . . . . . . . . .  13
      5.1.  Intent Registry (Ordered Logs)  . . . . . . . . . . . . .  13
        5.1.1.  Relationship Between session_id and jti . . . . . . .  14
-     5.2.  merkle Tree Construction  . . . . . . . . . . . . . . . .  15
-     5.3.  merkle Root in Token  . . . . . . . . . . . . . . . . . .  15
+     5.2.  Merkle Tree Construction  . . . . . . . . . . . . . . . .  15
+     5.3.  Merkle Root in Token  . . . . . . . . . . . . . . . . . .  15
    6.  Token Structure . . . . . . . . . . . . . . . . . . . . . . .  16
      6.1.  Combined Token Format . . . . . . . . . . . . . . . . . .  16
      6.2.  Claim Definitions . . . . . . . . . . . . . . . . . . . .  17
@@ -109,7 +109,7 @@ Table of Contents
 
 
 
-Krishnan, et al.        Expires 11 September 2026               [Page 2]
+Krishnan, et al.        Expires 19 September 2026               [Page 2]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -123,7 +123,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
        7.2.2.  Full Chain Verification . . . . . . . . . . . . . . .  21
        7.2.3.  Cross-Chain Correlation . . . . . . . . . . . . . . .  21
        7.2.4.  Dispute Resolution Workflow . . . . . . . . . . . . .  22
-       7.2.5.  Single Entry Verification (merkle Proof)  . . . . . .  22
+       7.2.5.  Single Entry Verification (Merkle Proof)  . . . . . .  22
    8.  Operational Flows . . . . . . . . . . . . . . . . . . . . . .  23
      8.1.  Intent Chain Construction . . . . . . . . . . . . . . . .  23
      8.2.  Token Exchange Integration  . . . . . . . . . . . . . . .  24
@@ -149,13 +149,13 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
      12.3.  Scalability Considerations . . . . . . . . . . . . . . .  31
      12.4.  Operational Recommendations  . . . . . . . . . . . . . .  31
      12.5.  Registry Availability  . . . . . . . . . . . . . . . . .  32
-   13. Design Rationale: merkle Root in Token  . . . . . . . . . . .  32
+   13. Design Rationale: Merkle Root in Token  . . . . . . . . . . .  32
    14. Audit Procedures  . . . . . . . . . . . . . . . . . . . . . .  33
      14.1.  Cross-Chain Binding  . . . . . . . . . . . . . . . . . .  33
    15. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  34
      15.1.  JWT Claim Registration . . . . . . . . . . . . . . . . .  34
      15.2.  CWT Claim Registration . . . . . . . . . . . . . . . . .  34
-   Appendix A.  merkle Tree Construction Details . . . . . . . . . .  35
+   Appendix A.  Merkle Tree Construction Details . . . . . . . . . .  35
      A.1.  Tree Structure  . . . . . . . . . . . . . . . . . . . . .  35
      A.2.  Reference Construction Algorithm  . . . . . . . . . . . .  36
    Appendix B.  Complete Token Examples  . . . . . . . . . . . . . .  36
@@ -165,7 +165,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026               [Page 3]
+Krishnan, et al.        Expires 19 September 2026               [Page 3]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -221,7 +221,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026               [Page 4]
+Krishnan, et al.        Expires 19 September 2026               [Page 4]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -261,11 +261,11 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
     |             | Plane | inline     |          | Party (real-time |
     |             |       |            |          | authorization)   |
     +-------------+-------+------------+----------+------------------+
-    | *Intent*    | Audit | merkle     | External | Audit systems,   |
+    | *Intent*    | Audit | Merkle     | External | Audit systems,   |
     |             | Plane | root only  | registry | forensic         |
     |             |       |            |          | investigators    |
     +-------------+-------+------------+----------+------------------+
-    | *Inference* | Audit | merkle     | External | Auditors,        |
+    | *Inference* | Audit | Merkle     | External | Auditors,        |
     |             | Plane | root only  | registry | compliance       |
     |             |       |            |          | systems          |
     +-------------+-------+------------+----------+------------------+
@@ -277,7 +277,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026               [Page 5]
+Krishnan, et al.        Expires 19 September 2026               [Page 5]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -298,9 +298,9 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    1.  *Content Provenance*: Cryptographic proof of what each agent
        produced
    2.  *Transformation Tracking*: Record of how filters modified content
-   3.  *Tamper Evidence*: merkle tree structure prevents undetected
+   3.  *Tamper Evidence*: Merkle tree structure prevents undetected
        modification
-   4.  *Efficiency*: Only merkle root in token; full chain in logs
+   4.  *Efficiency*: Only Merkle root in token; full chain in logs
    5.  *Scalability*: Append-only logs scale horizontally
    6.  *Modularity*: Usable independently or with actor chain
    7.  *Standards Alignment*: Compatible with OAuth 2.0, JWT, SPIFFE
@@ -333,12 +333,12 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026               [Page 6]
+Krishnan, et al.        Expires 19 September 2026               [Page 6]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
-   Intent Root:  The merkle root hash of the complete intent chain,
+   Intent Root:  The Merkle root hash of the complete intent chain,
       included in the OAuth token.
    Intent Registry:  An append-only ordered log storing the full intent
       chain entries, partitioned by session.
@@ -360,10 +360,10 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
       in token.  Addresses Spoofing, Repudiation, and Elevation of
       Privilege.  Defined in {{!I-D.draft-mw-spice-actor-chain}}.
    *  *Intent Chain (WHAT)*: Contains AI agents and filters.  Full chain
-      stored in ordered logs; merkle root in token.  Addresses
+      stored in ordered logs; Merkle root in token.  Addresses
       Repudiation and Tampering.  Defined in this document.
    *  *Inference Chain (HOW)*: Contains per-inference computational
-      proofs.  Full proofs stored in ordered logs; merkle root in token.
+      proofs.  Full proofs stored in ordered logs; Merkle root in token.
       Addresses Computational Spoofing and Model Tampering.  Defined in
       {{!I-D.draft-mw-spice-inference-chain}}.
 
@@ -389,7 +389,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026               [Page 7]
+Krishnan, et al.        Expires 19 September 2026               [Page 7]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -431,7 +431,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    *  Contains AI agents AND filters
    *  Tracks content production and transformation
-   *  merkle root in token; full chain in ordered logs
+   *  Merkle root in token; full chain in ordered logs
    *  Addresses Repudiation and Tampering
 
 3.5.  STRIDE Threat Model Coverage
@@ -445,12 +445,12 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026               [Page 8]
+Krishnan, et al.        Expires 19 September 2026               [Page 8]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
-    | *T* - Tampering   | merkle tree integrity,    | Intent Chain   |
+    | *T* - Tampering   | Merkle tree integrity,    | Intent Chain   |
     |                   | append-only logs          |                |
     +-------------------+---------------------------+----------------+
     | *R* - Repudiation | Signed delegation (Actor) | Both           |
@@ -494,14 +494,14 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    entry[i].output_hash == entry[i+1].input_hash, creating a complete
    content provenance chain.  The cost is approximately 40 bytes per
    entry in the ordered logs — not in the token itself, which carries
-   only the merkle root regardless of entry count.
+   only the Merkle root regardless of entry count.
 
 
 
 
 
 
-Krishnan, et al.        Expires 11 September 2026               [Page 9]
+Krishnan, et al.        Expires 19 September 2026               [Page 9]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -557,7 +557,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 10]
+Krishnan, et al.        Expires 19 September 2026              [Page 10]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -613,7 +613,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 11]
+Krishnan, et al.        Expires 19 September 2026              [Page 11]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -642,7 +642,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    |               |        |          | created                      |
    +---------------+--------+----------+------------------------------+
    | intent_digest | string | REQUIRED | Hash of the canonically      |
-   |               |        |          | serialized entry for merkle  |
+   |               |        |          | serialized entry for Merkle  |
    |               |        |          | leaf computation             |
    +---------------+--------+----------+------------------------------+
    | intent_sig    | string | REQUIRED | Signature over intent_digest |
@@ -657,7 +657,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    The intent_digest field is computed as the SHA-256 hash of the
    canonically serialized entry, excluding the intent_digest and
    intent_sig fields themselves.  This hash serves as the leaf node in
-   the merkle tree.
+   the Merkle tree.
 
    For an entry E with fields {type, sub, input_hash, output_hash, iat,
    ...}:
@@ -669,7 +669,7 @@ intent_digest = SHA-256(canonical_json(E \ {intent_digest, intent_sig}))
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 12]
+Krishnan, et al.        Expires 19 September 2026              [Page 12]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -725,7 +725,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 13]
+Krishnan, et al.        Expires 19 September 2026              [Page 13]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -781,7 +781,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 14]
+Krishnan, et al.        Expires 19 September 2026              [Page 14]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -806,9 +806,9 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    claim.  During forensic verification, the investigator retrieves all
    entries for a session_id to reconstruct the complete content journey.
 
-5.2.  merkle Tree Construction
+5.2.  Merkle Tree Construction
 
-   The merkle tree is constructed from ordered log entries.  Leaf nodes
+   The Merkle tree is constructed from ordered log entries.  Leaf nodes
    are the SHA-256 hashes of canonically serialized intent chain
    entries.  Internal nodes are the SHA-256 hash of the concatenation of
    their two child hashes.  When a level has an odd number of nodes, the
@@ -817,9 +817,9 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    See Appendix A for a visual depiction and reference construction
    algorithm.
 
-5.3.  merkle Root in Token
+5.3.  Merkle Root in Token
 
-   Only the merkle root is included in the OAuth token:
+   Only the Merkle root is included in the OAuth token:
 
    {
      "intent_root": "sha256:abc123def456...",
@@ -837,7 +837,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 15]
+Krishnan, et al.        Expires 19 September 2026              [Page 15]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -845,7 +845,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
      +=================+========+==========+========================+
      | Field           | Type   | Required | Description            |
      +=================+========+==========+========================+
-     | intent_root     | string | REQUIRED | merkle root hash of    |
+     | intent_root     | string | REQUIRED | Merkle root hash of    |
      |                 |        |          | intent chain           |
      +-----------------+--------+----------+------------------------+
      | intent_alg      | string | OPTIONAL | Hash algorithm         |
@@ -893,7 +893,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 16]
+Krishnan, et al.        Expires 19 September 2026              [Page 16]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -949,7 +949,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 17]
+Krishnan, et al.        Expires 19 September 2026              [Page 17]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -982,7 +982,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    +=================+========+=======================================+
    | Claim           | Type   | Description                           |
    +=================+========+=======================================+
-   | intent_root     | string | merkle root hash of intent chain      |
+   | intent_root     | string | Merkle root hash of intent chain      |
    +-----------------+--------+---------------------------------------+
    | intent_alg      | string | Hash algorithm used (default: sha256) |
    +-----------------+--------+---------------------------------------+
@@ -1005,7 +1005,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 18]
+Krishnan, et al.        Expires 19 September 2026              [Page 18]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1061,7 +1061,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 19]
+Krishnan, et al.        Expires 19 September 2026              [Page 19]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1117,7 +1117,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 20]
+Krishnan, et al.        Expires 19 September 2026              [Page 20]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1139,7 +1139,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    1.  *Retrieve inputs*: Extract intent_root and intent_registry from
        the archived token.  Fetch the full intent chain from the
        registry using the session_id.
-   2.  *Verify merkle integrity*: Rebuild the merkle tree from all
+   2.  *Verify Merkle integrity*: Rebuild the Merkle tree from all
        entries.  Compare the computed root with intent_root from the
        token.  If they do not match, the chain has been tampered with.
    3.  *Verify signatures*: For each entry, verify intent_sig over
@@ -1173,7 +1173,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 21]
+Krishnan, et al.        Expires 19 September 2026              [Page 21]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1202,12 +1202,12 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
        and a different output_hash — proving the filter made the change,
        not Agent A.
 
-7.2.5.  Single Entry Verification (merkle Proof)
+7.2.5.  Single Entry Verification (Merkle Proof)
 
    To verify a single entry without fetching the full chain:
 
    1.  Extract intent_root from the token.
-   2.  Request a merkle proof for entry[i] from the registry.
+   2.  Request a Merkle proof for entry[i] from the registry.
    3.  The registry returns the entry and sibling hashes on the path to
        the root.
    4.  Compute the hash of the entry and the path to the root using
@@ -1229,7 +1229,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 22]
+Krishnan, et al.        Expires 19 September 2026              [Page 22]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1285,7 +1285,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 23]
+Krishnan, et al.        Expires 19 September 2026              [Page 23]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1341,7 +1341,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 24]
+Krishnan, et al.        Expires 19 September 2026              [Page 24]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1367,7 +1367,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
         |               | Compute    |            |
         |               | intent_root|            |
         |               |----------->|            |
-        |               | Get merkle |            |
+        |               | Get Merkle |            |
         |               | root       |            |
         |               |<-----------|            |
         |               |            |            |
@@ -1397,7 +1397,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 25]
+Krishnan, et al.        Expires 19 September 2026              [Page 25]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1453,7 +1453,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 26]
+Krishnan, et al.        Expires 19 September 2026              [Page 26]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1509,7 +1509,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 27]
+Krishnan, et al.        Expires 19 September 2026              [Page 27]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1531,8 +1531,8 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    +===============+========================+=========================+
    | *Spoofing*    | Cryptographic identity | Actor chain, SPIFFE IDs |
    +---------------+------------------------+-------------------------+
-   | *Tampering*   | merkle tree integrity  | Append-only logs,       |
-   |               |                        | merkle root in JWT      |
+   | *Tampering*   | Merkle tree integrity  | Append-only logs,       |
+   |               |                        | Merkle root in JWT      |
    +---------------+------------------------+-------------------------+
    | *Repudiation* | Signed outputs         | intent_sig on agent and |
    |               |                        | filter entries          |
@@ -1565,7 +1565,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 28]
+Krishnan, et al.        Expires 19 September 2026              [Page 28]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1581,15 +1581,15 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    Each intent chain entry includes an iat (issued-at) timestamp.  The
    session-scoped partitioning of the intent registry prevents cross-
-   session replay.  Additionally, the merkle root is bound to the JWT
+   session replay.  Additionally, the Merkle root is bound to the JWT
    via the intent_root claim, and the JWT itself carries exp and jti
    claims, providing token-level replay protection.
 
 10.4.  Chain Integrity
 
-   The merkle tree structure provides tamper evidence for the intent
+   The Merkle tree structure provides tamper evidence for the intent
    chain.  Any modification to an entry changes its leaf hash, which
-   propagates up the tree, changing the merkle root.  Since the merkle
+   propagates up the tree, changing the Merkle root.  Since the Merkle
    root is included in the signed JWT, any tampering with the intent
    chain entries is detectable.
 
@@ -1621,7 +1621,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 29]
+Krishnan, et al.        Expires 19 September 2026              [Page 29]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1658,7 +1658,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    *  Append-only log structure
    *  Partitioned by session.session_id for isolation
    *  Configurable retention period
-   *  merkle root computation triggered on append or at token exchange
+   *  Merkle root computation triggered on append or at token exchange
       time
 
    A federated IAM/IdM platform (e.g., Keycloak, Microsoft Entra, Okta,
@@ -1677,7 +1677,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 30]
+Krishnan, et al.        Expires 19 September 2026              [Page 30]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1696,10 +1696,10 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
       forward unchanged through all token exchanges.
    *  Each AS appends entries atomically under the session's sid
       partition.
-   *  The merkle root is recomputed at each token exchange time over all
+   *  The Merkle root is recomputed at each token exchange time over all
       entries accumulated so far (by any AS).
    *  The resulting intent_root in the token therefore differs at each
-      hop — each successive AS produces a larger merkle root reflecting
+      hop — each successive AS produces a larger Merkle root reflecting
       the growing chain.  This is expected behavior: a growing root is
       the normal consequence of an append-only chain and indicates that
       additional intent entries have been recorded.
@@ -1714,9 +1714,9 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    *  *Log Partitioning*: Session-based partitioning ensures that intent
       chains for different sessions are isolated and can be processed in
       parallel.
-   *  *merkle Root Caching*: Computed merkle roots SHOULD be cached to
+   *  *Merkle Root Caching*: Computed Merkle roots SHOULD be cached to
       avoid recomputation on every token exchange.
-   *  *Proof Materialization*: merkle proofs for recent entries SHOULD
+   *  *Proof Materialization*: Merkle proofs for recent entries SHOULD
       be pre-computed and cached for O(1) retrieval.
 
 12.4.  Operational Recommendations
@@ -1725,7 +1725,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
       maximum audit window required by the deployment's regulatory
       environment.
    *  *Monitoring*: Operators SHOULD monitor intent chain append latency
-      and merkle root computation time.
+      and Merkle root computation time.
    *  *Backup*: Intent chain logs SHOULD be replicated across
       availability zones for durability.
 
@@ -1733,7 +1733,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 31]
+Krishnan, et al.        Expires 19 September 2026              [Page 31]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1753,16 +1753,16 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    *  Use append-only log services designed for high durability (e.g.,
       SCITT transparency logs).
    *  Retain archived tokens (containing intent_root) separately from
-      intent chain entries, so that merkle root commitments survive
+      intent chain entries, so that Merkle root commitments survive
       independently of the registry.
    *  Define a fail-mode policy: *fail-closed* (reject tokens whose
       intent chains cannot be verified) for high-risk operations, or
       *fail-open* (accept the AS-signed token and log the verification
       gap) for low-risk operations.
 
-13.  Design Rationale: merkle Root in Token
+13.  Design Rationale: Merkle Root in Token
 
-   The intent chain uses a merkle root in the token rather than
+   The intent chain uses a Merkle root in the token rather than
    embedding the full chain inline.  The following table summarizes the
    trade-offs:
 
@@ -1789,7 +1789,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 32]
+Krishnan, et al.        Expires 19 September 2026              [Page 32]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1803,9 +1803,10 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
    | token*     |per      |              | exposed    |                |
    |            |entry    |              |            |                |
    +------------+---------+--------------+------------+----------------+
-   | *B. merkle |O(1) —   | O(log n) per | Good —     | Single-entry   |
-   | root in    |~64      | entry        | selective  | proofs         |
-   | token*     |bytes    |              | disclosure |                |
+   | *B.        |O(1) —   | O(log n) per | Good —     | Single-entry   |
+   | Merkle     |~64      | entry        | selective  | proofs         |
+   | root in    |bytes    |              | disclosure |                |
+   | token*     |         |              |            |                |
    +------------+---------+--------------+------------+----------------+
    | *C.        |O(1) —   | O(n) — must  | Good —     | Must verify    |
    | Simple     |~64      | rehash all   | external   | all            |
@@ -1821,7 +1822,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    Approach B is chosen because intent chains can contain 20-50+
    entries, making inline embedding impractical for data-plane proxies.
-   The merkle tree enables O(log n) selective verification of individual
+   The Merkle tree enables O(log n) selective verification of individual
    entries and provides cryptographic binding between the token and the
    registry.  The actor chain ({{!I-D.draft-mw-spice-actor-chain}}) uses
    approach A because delegation chains are small (typically 3-5
@@ -1844,8 +1845,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-
-Krishnan, et al.        Expires 11 September 2026              [Page 33]
+Krishnan, et al.        Expires 19 September 2026              [Page 33]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1859,7 +1859,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    *  *Claim Name*: intent_root
 
-   *  *Claim Description*: merkle root hash of the intent chain for
+   *  *Claim Description*: Merkle root hash of the intent chain for
       content provenance verification.
 
    *  *Change Controller*: IETF
@@ -1868,7 +1868,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    *  *Claim Name*: intent_alg
 
-   *  *Claim Description*: Hash algorithm used for intent chain merkle
+   *  *Claim Description*: Hash algorithm used for intent chain Merkle
       tree construction.
 
    *  *Change Controller*: IETF
@@ -1891,7 +1891,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    *  *Claim Name*: intent_root
 
-   *  *Claim Description*: merkle root hash of the intent chain.
+   *  *Claim Description*: Merkle root hash of the intent chain.
 
    *  *CBOR Key*: TBD (e.g., 50)
 
@@ -1901,7 +1901,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 34]
+Krishnan, et al.        Expires 19 September 2026              [Page 34]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -1923,7 +1923,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    *  *Claim Name*: intent_alg
 
-   *  *Claim Description*: Hash algorithm used for intent chain merkle
+   *  *Claim Description*: Hash algorithm used for intent chain Merkle
       tree construction.
 
    *  *CBOR Key*: TBD (e.g., 52)
@@ -1934,7 +1934,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
    *  *Specification Document(s)*: [this document]
 
-Appendix A.  merkle Tree Construction Details
+Appendix A.  Merkle Tree Construction Details
 
 A.1.  Tree Structure
 
@@ -1957,7 +1957,7 @@ A.1.  Tree Structure
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 35]
+Krishnan, et al.        Expires 19 September 2026              [Page 35]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -2013,7 +2013,7 @@ B.1.  Full Governance Token
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 36]
+Krishnan, et al.        Expires 19 September 2026              [Page 36]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -2069,7 +2069,7 @@ B.2.  Corresponding Intent Chain Log Entries
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 37]
+Krishnan, et al.        Expires 19 September 2026              [Page 37]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -2125,7 +2125,7 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 38]
+Krishnan, et al.        Expires 19 September 2026              [Page 38]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -2181,7 +2181,7 @@ Authors' Addresses
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 39]
+Krishnan, et al.        Expires 19 September 2026              [Page 39]
 
 Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
@@ -2237,4 +2237,4 @@ Internet-Draft             SPICE-INTENT-CHAIN                 March 2026
 
 
 
-Krishnan, et al.        Expires 11 September 2026              [Page 40]
+Krishnan, et al.        Expires 19 September 2026              [Page 40]

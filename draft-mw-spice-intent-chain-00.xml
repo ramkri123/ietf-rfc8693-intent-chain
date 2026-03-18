@@ -12,19 +12,19 @@
 </postal><email>diego.r.lopez@telefonica.com</email>
 </address></author><author initials="S." surname="Addepalli" fullname="Srinivasa Addepalli"><organization>Aryaka</organization><address><postal><street></street>
 </postal><email>srinivasa.addepalli@aryaka.com</email>
-</address></author><date year="2026" month="March" day="10"></date>
+</address></author><date year="2026" month="March" day="18"></date>
 <area>Security</area>
 <workgroup>SPICE</workgroup>
 <keyword>intent chain</keyword>
 <keyword>spice</keyword>
 <keyword>content provenance</keyword>
 <keyword>AI agents</keyword>
-<keyword>merkle tree</keyword>
+<keyword>Merkle tree</keyword>
 <keyword>agentic workflows</keyword>
 
 <abstract>
 <t>This document defines the <tt>intent_chain</tt> claim as a companion to the <tt>actor_chain</tt> claim defined in {{!I-D.draft-mw-spice-actor-chain}}. While the actor chain addresses delegation provenance (WHO delegated to whom), the intent chain addresses content provenance (WHAT was produced and HOW it was transformed).</t>
-<t>In AI agent workflows, content flows through multiple processing stages including AI agents and filters. The intent chain provides a cryptographically verifiable, tamper-evident record of this content journey. The full intent chain is stored as ordered logs, with only the merkle root included in the OAuth token for efficiency.</t>
+<t>In AI agent workflows, content flows through multiple processing stages including AI agents and filters. The intent chain provides a cryptographically verifiable, tamper-evident record of this content journey. The full intent chain is stored as ordered logs, with only the Merkle root included in the OAuth token for efficiency.</t>
 <t>Together, the actor chain and intent chain provide complete governance for autonomous AI agent systems, addressing Spoofing, Tampering, Repudiation, and Elevation of Privilege threats in the STRIDE threat model.</t>
 </abstract>
 
@@ -117,7 +117,7 @@
 <tr>
 <td align="left"><strong>Intent</strong></td>
 <td align="left">Audit Plane</td>
-<td align="left">merkle root only</td>
+<td align="left">Merkle root only</td>
 <td align="left">External registry</td>
 <td align="left">Audit systems, forensic investigators</td>
 </tr>
@@ -125,7 +125,7 @@
 <tr>
 <td align="left"><strong>Inference</strong></td>
 <td align="left">Audit Plane</td>
-<td align="left">merkle root only</td>
+<td align="left">Merkle root only</td>
 <td align="left">External registry</td>
 <td align="left">Auditors, compliance systems</td>
 </tr>
@@ -147,8 +147,8 @@
 <ol spacing="compact">
 <li><strong>Content Provenance</strong>: Cryptographic proof of what each agent produced</li>
 <li><strong>Transformation Tracking</strong>: Record of how filters modified content</li>
-<li><strong>Tamper Evidence</strong>: merkle tree structure prevents undetected modification</li>
-<li><strong>Efficiency</strong>: Only merkle root in token; full chain in logs</li>
+<li><strong>Tamper Evidence</strong>: Merkle tree structure prevents undetected modification</li>
+<li><strong>Efficiency</strong>: Only Merkle root in token; full chain in logs</li>
 <li><strong>Scalability</strong>: Append-only logs scale horizontally</li>
 <li><strong>Modularity</strong>: Usable independently or with actor chain</li>
 <li><strong>Standards Alignment</strong>: Compatible with OAuth 2.0, JWT, SPIFFE</li>
@@ -171,7 +171,7 @@
 <dt>Deterministic Filter:</dt>
 <dd>A processor whose output can be reproduced from its input and rules. Examples include schema validators, regex sanitizers, and bounds checkers. Output can be re-derived for verification.</dd>
 <dt>Intent Root:</dt>
-<dd>The merkle root hash of the complete intent chain, included in the OAuth token.</dd>
+<dd>The Merkle root hash of the complete intent chain, included in the OAuth token.</dd>
 <dt>Intent Registry:</dt>
 <dd>An append-only ordered log storing the full intent chain entries, partitioned by session.</dd>
 <dt>Actor Chain Registry:</dt>
@@ -187,8 +187,8 @@
 <ul spacing="compact">
 <li><strong>Session</strong>: Root of trust and lifecycle management. Initiated by human approval or system authorization. Contains subject, expiry, and approval reference.</li>
 <li><strong>Actor Chain (WHO)</strong>: Contains AI agents only. Full chain stored in token. Addresses Spoofing, Repudiation, and Elevation of Privilege. Defined in {{!I-D.draft-mw-spice-actor-chain}}.</li>
-<li><strong>Intent Chain (WHAT)</strong>: Contains AI agents and filters. Full chain stored in ordered logs; merkle root in token. Addresses Repudiation and Tampering. Defined in this document.</li>
-<li><strong>Inference Chain (HOW)</strong>: Contains per-inference computational proofs. Full proofs stored in ordered logs; merkle root in token. Addresses Computational Spoofing and Model Tampering. Defined in {{!I-D.draft-mw-spice-inference-chain}}.</li>
+<li><strong>Intent Chain (WHAT)</strong>: Contains AI agents and filters. Full chain stored in ordered logs; Merkle root in token. Addresses Repudiation and Tampering. Defined in this document.</li>
+<li><strong>Inference Chain (HOW)</strong>: Contains per-inference computational proofs. Full proofs stored in ordered logs; Merkle root in token. Addresses Computational Spoofing and Model Tampering. Defined in {{!I-D.draft-mw-spice-inference-chain}}.</li>
 </ul>
 </section>
 
@@ -256,7 +256,7 @@
 <ul spacing="compact">
 <li>Contains AI agents AND filters</li>
 <li>Tracks content production and transformation</li>
-<li>merkle root in token; full chain in ordered logs</li>
+<li>Merkle root in token; full chain in ordered logs</li>
 <li>Addresses Repudiation and Tampering</li>
 </ul>
 </section>
@@ -280,7 +280,7 @@
 
 <tr>
 <td align="left"><strong>T</strong> - Tampering</td>
-<td align="left">merkle tree integrity, append-only logs</td>
+<td align="left">Merkle tree integrity, append-only logs</td>
 <td align="left">Intent Chain</td>
 </tr>
 
@@ -340,7 +340,7 @@
 <td align="left"><tt>rule_id</tt>, <tt>rule_hash</tt></td>
 </tr>
 </tbody>
-</table><t>All entry types REQUIRE both <tt>input_hash</tt> and <tt>output_hash</tt>. This uniform structure ensures that every consecutive pair satisfies <tt>entry[i].output_hash == entry[i+1].input_hash</tt>, creating a complete content provenance chain. The cost is approximately 40 bytes per entry in the ordered logs — not in the token itself, which carries only the merkle root regardless of entry count.</t>
+</table><t>All entry types REQUIRE both <tt>input_hash</tt> and <tt>output_hash</tt>. This uniform structure ensures that every consecutive pair satisfies <tt>entry[i].output_hash == entry[i+1].input_hash</tt>, creating a complete content provenance chain. The cost is approximately 40 bytes per entry in the ordered logs — not in the token itself, which carries only the Merkle root regardless of entry count.</t>
 </section>
 
 <section anchor="non-deterministic-entries"><name>Non-Deterministic Entries</name>
@@ -491,7 +491,7 @@
 <td align="left"><tt>intent_digest</tt></td>
 <td align="left">string</td>
 <td align="left">REQUIRED</td>
-<td align="left">Hash of the canonically serialized entry for merkle leaf computation</td>
+<td align="left">Hash of the canonically serialized entry for Merkle leaf computation</td>
 </tr>
 
 <tr>
@@ -503,7 +503,7 @@
 </tbody>
 </table>
 <section anchor="intent-digest-computation"><name><tt>intent_digest</tt> Computation</name>
-<t>The <tt>intent_digest</tt> field is computed as the SHA-256 hash of the canonically serialized entry, excluding the <tt>intent_digest</tt> and <tt>intent_sig</tt> fields themselves. This hash serves as the leaf node in the merkle tree.</t>
+<t>The <tt>intent_digest</tt> field is computed as the SHA-256 hash of the canonically serialized entry, excluding the <tt>intent_digest</tt> and <tt>intent_sig</tt> fields themselves. This hash serves as the leaf node in the Merkle tree.</t>
 <t>For an entry E with fields {type, sub, input_hash, output_hash, iat, ...}:</t>
 
 <artwork><![CDATA[intent_digest = SHA-256(canonical_json(E \ {intent_digest, intent_sig}))
@@ -623,13 +623,13 @@
 </section>
 </section>
 
-<section anchor="merkle-tree-construction"><name>merkle Tree Construction</name>
-<t>The merkle tree is constructed from ordered log entries. Leaf nodes are the SHA-256 hashes of canonically serialized intent chain entries. Internal nodes are the SHA-256 hash of the concatenation of their two child hashes. When a level has an odd number of nodes, the last node is promoted to the next level.</t>
+<section anchor="merkle-tree-construction"><name>Merkle Tree Construction</name>
+<t>The Merkle tree is constructed from ordered log entries. Leaf nodes are the SHA-256 hashes of canonically serialized intent chain entries. Internal nodes are the SHA-256 hash of the concatenation of their two child hashes. When a level has an odd number of nodes, the last node is promoted to the next level.</t>
 <t>See Appendix A for a visual depiction and reference construction algorithm.</t>
 </section>
 
-<section anchor="merkle-root-in-token"><name>merkle Root in Token</name>
-<t>Only the merkle root is included in the OAuth token:</t>
+<section anchor="merkle-root-in-token"><name>Merkle Root in Token</name>
+<t>Only the Merkle root is included in the OAuth token:</t>
 
 <sourcecode type="json"><![CDATA[{
   "intent_root": "sha256:abc123def456...",
@@ -652,7 +652,7 @@
 <td align="left"><tt>intent_root</tt></td>
 <td align="left">string</td>
 <td align="left">REQUIRED</td>
-<td align="left">merkle root hash of intent chain</td>
+<td align="left">Merkle root hash of intent chain</td>
 </tr>
 
 <tr>
@@ -783,7 +783,7 @@
 <tr>
 <td align="left"><tt>intent_root</tt></td>
 <td align="left">string</td>
-<td align="left">merkle root hash of intent chain</td>
+<td align="left">Merkle root hash of intent chain</td>
 </tr>
 
 <tr>
@@ -917,7 +917,7 @@
 
 <ol spacing="compact">
 <li><strong>Retrieve inputs</strong>: Extract <tt>intent_root</tt> and <tt>intent_registry</tt> from the archived token. Fetch the full intent chain from the registry using the <tt>session_id</tt>.</li>
-<li><strong>Verify merkle integrity</strong>: Rebuild the merkle tree from all entries. Compare the computed root with <tt>intent_root</tt> from the token. If they do not match, the chain has been tampered with.</li>
+<li><strong>Verify Merkle integrity</strong>: Rebuild the Merkle tree from all entries. Compare the computed root with <tt>intent_root</tt> from the token. If they do not match, the chain has been tampered with.</li>
 <li><strong>Verify signatures</strong>: For each entry, verify <tt>intent_sig</tt> over <tt>intent_digest</tt> using the sub's public key (discoverable via SPIFFE trust bundle or JWKS). A failed signature indicates a forged entry.</li>
 <li><strong>Verify chain linkage</strong>: For each consecutive pair, verify <tt>entry[i].output_hash == entry[i+1].input_hash</tt>. A broken link indicates content was modified between steps without being recorded.</li>
 <li><strong>Re-derive deterministic outputs</strong>: For <tt>deterministic</tt> entries, retrieve the rule definition matching <tt>rule_hash</tt>, re-apply it to the content matching <tt>input_hash</tt>, and verify the output matches <tt>output_hash</tt>. A mismatch indicates the filter did not behave as recorded.</li>
@@ -947,12 +947,12 @@
 </ol>
 </section>
 
-<section anchor="single-entry-verification-merkle-proof"><name>Single Entry Verification (merkle Proof)</name>
+<section anchor="single-entry-verification-merkle-proof"><name>Single Entry Verification (Merkle Proof)</name>
 <t>To verify a single entry without fetching the full chain:</t>
 
 <ol spacing="compact">
 <li>Extract <tt>intent_root</tt> from the token.</li>
-<li>Request a merkle proof for <tt>entry[i]</tt> from the registry.</li>
+<li>Request a Merkle proof for <tt>entry[i]</tt> from the registry.</li>
 <li>The registry returns the entry and sibling hashes on the path to the root.</li>
 <li>Compute the hash of the entry and the path to the root using sibling hashes.</li>
 <li>Compare the computed root with <tt>intent_root</tt>.</li>
@@ -1043,7 +1043,7 @@
      |               | Compute    |            |
      |               | intent_root|            |
      |               |----------->|            |
-     |               | Get merkle |            |
+     |               | Get Merkle |            |
      |               | root       |            |
      |               |<-----------|            |
      |               |            |            |
@@ -1181,8 +1181,8 @@
 
 <tr>
 <td align="left"><strong>Tampering</strong></td>
-<td align="left">merkle tree integrity</td>
-<td align="left">Append-only logs, merkle root in JWT</td>
+<td align="left">Merkle tree integrity</td>
+<td align="left">Append-only logs, Merkle root in JWT</td>
 </tr>
 
 <tr>
@@ -1237,11 +1237,11 @@
 </table></section>
 
 <section anchor="replay-protection"><name>Replay Protection</name>
-<t>Each intent chain entry includes an <tt>iat</tt> (issued-at) timestamp. The session-scoped partitioning of the intent registry prevents cross-session replay. Additionally, the merkle root is bound to the JWT via the <tt>intent_root</tt> claim, and the JWT itself carries <tt>exp</tt> and <tt>jti</tt> claims, providing token-level replay protection.</t>
+<t>Each intent chain entry includes an <tt>iat</tt> (issued-at) timestamp. The session-scoped partitioning of the intent registry prevents cross-session replay. Additionally, the Merkle root is bound to the JWT via the <tt>intent_root</tt> claim, and the JWT itself carries <tt>exp</tt> and <tt>jti</tt> claims, providing token-level replay protection.</t>
 </section>
 
 <section anchor="chain-integrity"><name>Chain Integrity</name>
-<t>The merkle tree structure provides tamper evidence for the intent chain. Any modification to an entry changes its leaf hash, which propagates up the tree, changing the merkle root. Since the merkle root is included in the signed JWT, any tampering with the intent chain entries is detectable.</t>
+<t>The Merkle tree structure provides tamper evidence for the intent chain. Any modification to an entry changes its leaf hash, which propagates up the tree, changing the Merkle root. Since the Merkle root is included in the signed JWT, any tampering with the intent chain entries is detectable.</t>
 <t>The append-only property of the intent registry provides additional protection: entries cannot be deleted or modified after creation.</t>
 </section>
 
@@ -1277,7 +1277,7 @@
 <li>Append-only log structure</li>
 <li>Partitioned by <tt>session.session_id</tt> for isolation</li>
 <li>Configurable retention period</li>
-<li>merkle root computation triggered on append or at token exchange time</li>
+<li>Merkle root computation triggered on append or at token exchange time</li>
 </ul>
 <t>A federated IAM/IdM platform (e.g., Keycloak, Microsoft Entra, Okta, PingFederate) MAY host the intent registry alongside the Actor Chain Registry ({{!I-D.draft-mw-spice-actor-chain}}), since the Authorization Server already mediates token exchanges and can append intent chain entries as a side-effect. Most enterprise IAM/IdM platforms support configurable data stores that can be configured for append-only semantics — see {{!I-D.draft-mw-spice-actor-chain}} Section &quot;Registry Hosting&quot; for detailed requirements.</t>
 </section>
@@ -1288,8 +1288,8 @@
 <ul spacing="compact">
 <li>The <tt>sid</tt> value is established at session initiation and carried forward unchanged through all token exchanges.</li>
 <li>Each AS appends entries atomically under the session's <tt>sid</tt> partition.</li>
-<li>The merkle root is recomputed at each token exchange time over all entries accumulated so far (by any AS).</li>
-<li>The resulting <tt>intent_root</tt> in the token therefore differs at each hop — each successive AS produces a larger merkle root reflecting the growing chain. This is expected behavior: a growing root is the normal consequence of an append-only chain and indicates that additional intent entries have been recorded.</li>
+<li>The Merkle root is recomputed at each token exchange time over all entries accumulated so far (by any AS).</li>
+<li>The resulting <tt>intent_root</tt> in the token therefore differs at each hop — each successive AS produces a larger Merkle root reflecting the growing chain. This is expected behavior: a growing root is the normal consequence of an append-only chain and indicates that additional intent entries have been recorded.</li>
 </ul>
 <t>This enables cross-domain content provenance tracking without requiring ASes to share keys or coordinate directly — the session partition and append-only log semantics provide the necessary consistency.</t>
 </section>
@@ -1298,8 +1298,8 @@
 
 <ul spacing="compact">
 <li><strong>Log Partitioning</strong>: Session-based partitioning ensures that intent chains for different sessions are isolated and can be processed in parallel.</li>
-<li><strong>merkle Root Caching</strong>: Computed merkle roots SHOULD be cached to avoid recomputation on every token exchange.</li>
-<li><strong>Proof Materialization</strong>: merkle proofs for recent entries SHOULD be pre-computed and cached for O(1) retrieval.</li>
+<li><strong>Merkle Root Caching</strong>: Computed Merkle roots SHOULD be cached to avoid recomputation on every token exchange.</li>
+<li><strong>Proof Materialization</strong>: Merkle proofs for recent entries SHOULD be pre-computed and cached for O(1) retrieval.</li>
 </ul>
 </section>
 
@@ -1307,7 +1307,7 @@
 
 <ul spacing="compact">
 <li><strong>Retention Policy</strong>: Intent chain logs SHOULD be retained for the maximum audit window required by the deployment's regulatory environment.</li>
-<li><strong>Monitoring</strong>: Operators SHOULD monitor intent chain append latency and merkle root computation time.</li>
+<li><strong>Monitoring</strong>: Operators SHOULD monitor intent chain append latency and Merkle root computation time.</li>
 <li><strong>Backup</strong>: Intent chain logs SHOULD be replicated across availability zones for durability.</li>
 </ul>
 </section>
@@ -1319,14 +1319,14 @@
 <ul spacing="compact">
 <li>Replicate intent registry entries across availability zones.</li>
 <li>Use append-only log services designed for high durability (e.g., SCITT transparency logs).</li>
-<li>Retain archived tokens (containing <tt>intent_root</tt>) separately from intent chain entries, so that merkle root commitments survive independently of the registry.</li>
+<li>Retain archived tokens (containing <tt>intent_root</tt>) separately from intent chain entries, so that Merkle root commitments survive independently of the registry.</li>
 <li>Define a fail-mode policy: <strong>fail-closed</strong> (reject tokens whose intent chains cannot be verified) for high-risk operations, or <strong>fail-open</strong> (accept the AS-signed token and log the verification gap) for low-risk operations.</li>
 </ul>
 </section>
 </section>
 
-<section anchor="design-rationale-merkle-root-in-token"><name>Design Rationale: merkle Root in Token</name>
-<t>The intent chain uses a merkle root in the token rather than embedding the full chain inline. The following table summarizes the trade-offs:</t>
+<section anchor="design-rationale-merkle-root-in-token"><name>Design Rationale: Merkle Root in Token</name>
+<t>The intent chain uses a Merkle root in the token rather than embedding the full chain inline. The following table summarizes the trade-offs:</t>
 <table>
 <thead>
 <tr>
@@ -1348,7 +1348,7 @@
 </tr>
 
 <tr>
-<td align="left"><strong>B. merkle root in token</strong></td>
+<td align="left"><strong>B. Merkle root in token</strong></td>
 <td align="left">O(1) — ~64 bytes</td>
 <td align="left">O(log n) per entry</td>
 <td align="left">Good — selective disclosure</td>
@@ -1371,7 +1371,7 @@
 <td align="left">Any pattern</td>
 </tr>
 </tbody>
-</table><t>Approach B is chosen because intent chains can contain 20-50+ entries, making inline embedding impractical for data-plane proxies. The merkle tree enables O(log n) selective verification of individual entries and provides cryptographic binding between the token and the registry. The actor chain ({{!I-D.draft-mw-spice-actor-chain}}) uses approach A because delegation chains are small (typically 3-5 entries) and every Relying Party needs the full delegation path.</t>
+</table><t>Approach B is chosen because intent chains can contain 20-50+ entries, making inline embedding impractical for data-plane proxies. The Merkle tree enables O(log n) selective verification of individual entries and provides cryptographic binding between the token and the registry. The actor chain ({{!I-D.draft-mw-spice-actor-chain}}) uses approach A because delegation chains are small (typically 3-5 entries) and every Relying Party needs the full delegation path.</t>
 </section>
 
 <section anchor="audit-procedures"><name>Audit Procedures</name>
@@ -1390,13 +1390,13 @@
 
 <ul>
 <li><strong>Claim Name</strong>: <tt>intent_root</tt></li>
-<li><strong>Claim Description</strong>: merkle root hash of the intent chain for content provenance verification.</li>
+<li><strong>Claim Description</strong>: Merkle root hash of the intent chain for content provenance verification.</li>
 <li><strong>Change Controller</strong>: IETF</li>
 <li><t><strong>Specification Document(s)</strong>: [this document]</t>
 </li>
 <li><t><strong>Claim Name</strong>: <tt>intent_alg</tt></t>
 </li>
-<li><t><strong>Claim Description</strong>: Hash algorithm used for intent chain merkle tree construction.</t>
+<li><t><strong>Claim Description</strong>: Hash algorithm used for intent chain Merkle tree construction.</t>
 </li>
 <li><t><strong>Change Controller</strong>: IETF</t>
 </li>
@@ -1418,7 +1418,7 @@
 
 <ul>
 <li><strong>Claim Name</strong>: <tt>intent_root</tt></li>
-<li><strong>Claim Description</strong>: merkle root hash of the intent chain.</li>
+<li><strong>Claim Description</strong>: Merkle root hash of the intent chain.</li>
 <li><strong>CBOR Key</strong>: TBD (e.g., 50)</li>
 <li><strong>Claim Type</strong>: tstr</li>
 <li><strong>Change Controller</strong>: IETF</li>
@@ -1438,7 +1438,7 @@
 </li>
 <li><t><strong>Claim Name</strong>: <tt>intent_alg</tt></t>
 </li>
-<li><t><strong>Claim Description</strong>: Hash algorithm used for intent chain merkle tree construction.</t>
+<li><t><strong>Claim Description</strong>: Hash algorithm used for intent chain Merkle tree construction.</t>
 </li>
 <li><t><strong>CBOR Key</strong>: TBD (e.g., 52)</t>
 </li>
@@ -1456,7 +1456,7 @@
 
 <back>
 
-<section anchor="merkle-tree-construction-details"><name>merkle Tree Construction Details</name>
+<section anchor="merkle-tree-construction-details"><name>Merkle Tree Construction Details</name>
 
 <section anchor="tree-structure"><name>Tree Structure</name>
 
