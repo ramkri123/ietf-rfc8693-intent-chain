@@ -76,37 +76,11 @@ Together, the actor chain and intent chain provide complete governance for auton
 
 # Introduction
 
-## The Problem: Content Provenance Gap
+The Actor Chain extension to {{!RFC8693}} (defined in {{!I-D.draft-mw-spice-actor-chain}}) provides cryptographic proof of delegation paths between AI agents (WHO), but does not address **content provenance** (WHAT was produced and transformed). In AI agent workflows, content flows through multiple agents and filters, each potentially transforming it. Without cryptographic binding between agent identities and their specific content hashes, repudiation claims ("Agent A never produced that output") cannot be disproven.
 
-The Actor Chain extension to {{!RFC8693}} (defined in {{!I-D.draft-mw-spice-actor-chain}}) addresses the Delegation Auditability Gap by providing cryptographic proof of the actual delegation path between AI agents. However, it does not address a complementary gap: **Content Provenance**.
-
-In AI agent workflows, content flows through multiple processing stages:
-
-```
-Agent A -> Filter -> Filter -> Agent B -> Filter -> Agent C -> Tool
-```
-
-Each stage may transform the content. AI agent outputs are inherently non-deterministic and cannot be trusted without validation. Filters (both AI-based and rule-based) transform this content before it reaches the next stage.
-
-For complete governance, systems require proof of:
-
-- **What** each AI agent originally produced (raw output)
-- **How** each filter transformed the content
-- **Whether** transformations were deterministic (reproducible) or non-deterministic (AI-based)
-- **The complete chain** of content transformations within a workflow instance
-
-Without this proof, the content transformation history cannot be reconstructed for audit or dispute resolution. Consider the following repudiation scenario:
-
-1. Agent A produces a response containing a harmful instruction (e.g., caused by prompt injection).
-2. The response passes through an AI guardrail filter, which fails to catch the harmful content.
-3. Agent B acts on the harmful instruction, causing damage.
-4. During investigation, Agent A's operator claims "Agent A never produced that output — it must have been injected by a downstream filter."
-
-Without cryptographic proof binding Agent A's identity to its specific output hash, this claim cannot be disproven. The intent chain solves this by requiring every agent to sign `input_hash` + `output_hash` via `intent_sig`, creating non-repudiable evidence of what each agent received and produced.
+This specification defines the intent chain — a cumulative hash chain commitment carried in the OAuth token, backed by an append-only registry of signed content transformation entries. Each agent signs `input_hash` + `output_hash` via `intent_step_sig`, creating non-repudiable evidence.
 
 ## Relationship to Actor Chain and Inference Chain
-
-This specification is part of a three-axis "Truth Stack" for AI agent governance:
 
 | Specification | Axis | Question Answered | STRIDE Coverage |
 | :--- | :--- | :--- | :--- |
@@ -120,33 +94,7 @@ This specification is part of a three-axis "Truth Stack" for AI agent governance
 | **Intent** | Audit Plane | Hash chain commitment only | External registry | Audit systems, forensic investigators |
 | **Inference** | Audit Plane | Hash chain commitment only | External registry | Auditors, compliance systems |
 
-The three chains are independent and composable:
-
-- **Actor Chain Only**: Real-time authorization, access control
-- **Intent Chain Only**: Content audit, debugging, filter validation
-- **Inference Chain Only**: Computational integrity verification for single-agent systems
-- **Actor + Intent**: Full content governance, dispute resolution, regulatory compliance
-- **All Three**: Complete "Truth Stack" — identity, content, and computational provenance
-
-1. **Content Provenance**: Cryptographic proof of what each agent produced
-2. **Transformation Tracking**: Record of how filters modified content
-3. **Tamper Evidence**: Hash chain structure prevents undetected modification
-4. **Efficiency**: Only hash chain commitment in token; full chain in logs
-5. **Scalability**: Append-only logs scale horizontally
-6. **Modularity**: Usable independently or with actor chain
-7. **Standards Alignment**: Compatible with OAuth 2.0, JWT, SPIFFE
-
-## Design Rationale: Hash Chain Commitment in Token
-
-The intent chain uses a cumulative hash chain commitment in the token rather than embedding the full chain inline. This approach is consistent with the Actor Chain's `actc` cumulative commitment pattern, providing a unified commitment model across the governance stack.
-
-| Approach | Token Size | Verification | Privacy |
-| :--- | :--- | :--- | :--- |
-| **A. Full chain in token** | O(n) — grows per entry | Inline, zero latency | Poor — all entries exposed |
-| **B. Hash chain commitment** | O(1) — ~64 bytes | O(n) — recompute chain | Good — external storage |
-| **C. No provenance in token** | Zero overhead | External lookup | Best — nothing in token |
-
-Approach B is chosen because intent chains can contain 20-50+ entries, making inline embedding impractical for data-plane proxies. The hash chain provides cryptographic binding between the token and the registry, ensuring tamper evidence over the complete entry sequence. O(n) forensic verification is acceptable because intent chain verification is an audit-plane operation performed infrequently (dispute resolution, compliance review), not a data-plane hot-path operation. The actor chain ({{!I-D.draft-mw-spice-actor-chain}}) uses approach A because delegation chains are small (typically 3-5 entries) and every Relying Party needs the full delegation path.
+The three chains are independent and composable. A deployment MAY use any subset (actor-only, actor+intent, all three). The token carries only an O(1) hash chain commitment (`intc`); full entries reside in an external registry.
 
 # Terminology
 
@@ -219,10 +167,10 @@ before computing its digest.
 
 ### DigestEntry(E)
 
-The `intent_digest` for an entry E is computed as:
+The `intent_step_hash` for an entry E is computed as:
 
 1. Create a copy of E.
-2. Remove the `intent_digest` and `intent_sig` members from the copy if
+2. Remove the `intent_step_hash` and `intent_step_sig` members from the copy if
    present.
 3. Compute the SHA-256 hash of the JCS-canonicalized copy.
 
@@ -253,17 +201,18 @@ The current actor (agent or filter) performs the following steps locally:
    `sub`, `input_hash`, `output_hash`, and `iat`.
 4. **Sign Entry**:
    a. Compute `DigestEntry(E)`.
-   b. Sign the digest using the actor's private key to produce `intent_sig`.
-   c. Add `intent_digest` and `intent_sig` to E.
+   b. Sign the digest using the actor's private key to produce `intent_step_sig`.
+   c. Add `intent_step_hash` and `intent_step_sig` to E.
 5. **Append to Registry**: The actor appends E to the `intent_registry`
    referenced in its current token.
 
 ### 2. Root Commitment (Infrastructure)
 
-While entries are signed by actors, the aggregate `intent_hash` in the token 
-serves as the formal commitment. If an AS is involved in a subsequent token 
-exchange (e.g., to extend the Actor Chain), it SHOULD recompute the `intent_hash` 
-from the registry state and embed it in the issued JWT.
+While entries are signed by actors, the aggregate `intc` commitment in the token 
+is signed by the Authorization Server (AS). When the AS performs a token 
+exchange (e.g., to extend the Actor Chain), it SHOULD recompute the `intc` 
+commitment over all intent chain entries for the current `acti` and include the 
+updated commitment object in the new token.
 
 ## Security Properties of Processing
 
@@ -273,53 +222,15 @@ from the registry state and embed it in the issued JWT.
   linkage (VerifyChainLinkage failure).
 * **Non-Repudiation**: Each agent's signature on its entry proves it
   attested to that specific transformation.
-* **Tamper Evidence**: The `intent_hash` in the JWT binds the forensic
+* **Tamper Evidence**: The `intc` commitment in the JWT binds the forensic
   evidence in the registry to the data-plane token.
 
-# Architecture: Governance Layers
-
-The SPICE governance stack consists of four layers that work together to
-ensure workflow integrity:
-
-| Layer | Responsibility | Binding | Threat Mitigation |
-| :--- | :--- | :--- | :--- |
-| **Workflow (`acti`)** | Lifecycle and identity boundary | `acti`, `sub`, `actp` | DoS, Leakage |
-| **Actor Chain (WHO)** | Delegation of authority path | `act`, `actc`, `step_sig` | Spoofing, EoP |
-| **Intent Chain (WHAT)** | Content transformation journey | `intent_hash`, `intent_sig` | Repudiation, Tampering |
-| **Inference Chain (HOW)** | Computational integrity | `inference_root`, `proof_sig` | Comp. Spoofing |
-
-## Relationship to Other Specifications
-
-### Actor Chain ({{!I-D.draft-mw-spice-actor-chain}})
+## Cross-Chain Dependencies
 
 The intent chain depends on the actor chain for identity mapping. Every
 `sub` producing an entry in the intent chain MUST be a valid actor in the
 corresponding actor chain. The `acti` identifier binds the two chains into a
 single verifiable workflow instance.
-
-## Evidence Composability
-
-The Actor Chain, Intent Chain, and Inference Chain are independent evidence
-suppliers — each produces verifiable facts about a different governance
-dimension (WHO, WHAT, HOW). No chain embeds another chain's evidence format;
-only correlation identifiers (`acti`, `sub`, `iat`) and commitment hashes cross
-boundaries.
-
-A policy engine evaluates authorization decisions by composing evidence from
-all available chains:
-
-```
-Decision = Policy(ActorEvidence ∪ IntentEvidence ∪ InferenceEvidence)
-```
-
-This composition model ensures:
-
-- **Independence**: Each chain is independently verifiable. A deployment MAY
-  use any subset of chains (actor-only, actor+intent, all three).
-- **Separation of Concerns**: Chains supply evidence (facts), not decisions.
-  The policy engine is the sole composition operator.
-- **Extensibility**: Adding a new evidence dimension (e.g., a future chain)
-  requires only extending the policy input, not modifying existing chains.
 
 
 # Intent Chain Definition
@@ -361,8 +272,8 @@ Non-deterministic entries record outputs from AI agents or AI-based filters whos
   "input_hash": "sha256:fff000...",
   "output_hash": "sha256:abc123...",
   "iat": 1700000010,
-  "intent_digest": "sha256:...",
-  "intent_sig": "eyJhbGci..."
+  "intent_step_hash": "sha256:...",
+  "intent_step_sig": "eyJhbGci..."
 }
 ```
 
@@ -380,8 +291,8 @@ Non-deterministic entries record outputs from AI agents or AI-based filters whos
     "categories": ["violence", "pii", "prompt_injection"]
   },
   "iat": 1700000015,
-  "intent_digest": "sha256:...",
-  "intent_sig": "eyJhbGci..."
+  "intent_step_hash": "sha256:...",
+  "intent_step_sig": "eyJhbGci..."
 }
 ```
 
@@ -428,8 +339,8 @@ Deterministic filter entries record transformations by rule-based filters whose 
   },
   "reproducible": true,
   "iat": 1700000016,
-  "intent_digest": "sha256:...",
-  "intent_sig": "eyJhbGci..."
+  "intent_step_hash": "sha256:...",
+  "intent_step_sig": "eyJhbGci..."
 }
 ```
 
@@ -444,27 +355,70 @@ All intent chain entries share common fields:
 | `input_hash` | string | REQUIRED | SHA-256 hash of the input content |
 | `output_hash` | string | REQUIRED | SHA-256 hash of the output content |
 | `iat` | number | REQUIRED | Timestamp when entry was created |
-| `intent_digest` | string | REQUIRED | Hash of the canonically serialized entry, used as input to the hash chain computation |
-| `intent_sig` | string | REQUIRED | Signature over `intent_digest` using the agent's or filter's private key |
+| `intent_step_hash` | string | REQUIRED | Hash of the canonically serialized entry, used as input to the hash chain computation |
+| `intent_step_sig` | string | REQUIRED | Signature over `intent_step_hash` using the agent's or filter's private key |
+| `content_envelope` | object | OPTIONAL | Encrypted raw input/output for audit-time content recoverability |
+
+### Sealed Content Layer
+
+Intent registry entries MAY include an OPTIONAL `content_envelope` providing
+encrypted raw input and output content for audit-time recoverability. The
+sealed content layer enables forensic investigators to reconstruct actual
+content during disputes, rather than relying solely on hash verification.
+
+The public layer (hashes, signatures) provides tamper evidence. The sealed
+layer provides content recoverability for authorized auditors.
+
+```json
+{
+  "type": "non_deterministic",
+  "sub": "spiffe://example.com/agent/analyst",
+  "input_hash": "sha256:fff000...",
+  "output_hash": "sha256:abc123...",
+  "iat": 1700000010,
+  "intent_step_hash": "sha256:...",
+  "intent_step_sig": "eyJhbGci...",
+
+  "content_envelope": {
+    "enc": "A256GCM",
+    "input_ciphertext": "base64url:...",
+    "output_ciphertext": "base64url:...",
+    "key_ref": "https://kms.example.com/keys/audit-key-v1"
+  }
+}
+```
+
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `content_envelope.enc` | string | REQUIRED | JWE encryption algorithm (e.g., `A256GCM`) |
+| `content_envelope.input_ciphertext` | string | REQUIRED | Encrypted raw input content |
+| `content_envelope.output_ciphertext` | string | REQUIRED | Encrypted raw output content |
+| `content_envelope.key_ref` | string | REQUIRED | URI referencing the KMS key with access policy |
+
+The `content_envelope` is:
+
+- **Not covered by `intent_step_hash`**: The digest computation excludes `content_envelope` (along with `intent_step_hash` and `intent_step_sig`), so the commitment chain is unaffected.
+- **Encrypted at rest**: Only authorized auditors with access to the referenced KMS key can decrypt the content.
+- **Verifiable against hashes**: After decryption, `SHA-256(plaintext_input) == input_hash` and `SHA-256(plaintext_output) == output_hash` MUST hold.
 
 
-### `intent_digest` Computation
+### `intent_step_hash` Computation
 
-The `intent_digest` field is computed as the SHA-256 hash of the canonically serialized entry, excluding the `intent_digest` and `intent_sig` fields themselves. This hash serves as the input to the cumulative hash chain commitment.
+The `intent_step_hash` field is computed as the SHA-256 hash of the canonically serialized entry, excluding the `intent_step_hash`, `intent_step_sig`, and `content_envelope` fields. This hash serves as the input to the cumulative hash chain computation.
 
 For an entry E with fields {type, sub, input_hash, output_hash, iat, ...}:
 
 ```
-intent_digest = SHA-256(canonical_json(E \ {intent_digest, intent_sig}))
+intent_step_hash = SHA-256(canonical_json(E \ {intent_step_hash, intent_step_sig, content_envelope}))
 ```
 
 Where `canonical_json` follows JSON Canonicalization Scheme (JCS)
 {{!RFC8785}} to ensure deterministic serialization.
 
-The `intent_sig` (when REQUIRED) is computed over the `intent_digest` value using the agent's private key:
+The `intent_step_sig` (when REQUIRED) is computed over the `intent_step_hash` value using the agent's private key:
 
 ```
-intent_sig = Sign(agent_key, intent_digest)
+intent_step_sig = Sign(agent_key, intent_step_hash)
 ```
 
 This two-step process ensures that: (a) the digest is stable and independent of signature ordering, and (b) the signature covers all content-relevant fields of the entry.
@@ -514,8 +468,8 @@ Implementations SHOULD use an append-only log that supports partitioned, ordered
     "input_hash": "sha256:prompt...",
     "output_hash": "sha256:abc...",
     "iat": 1700000010,
-    "intent_digest": "sha256:...",
-    "intent_sig": "eyJ..."
+    "intent_step_hash": "sha256:...",
+    "intent_step_sig": "eyJ..."
   }
 }
 ```
@@ -555,31 +509,42 @@ The intent chain uses a cumulative hash chain constructed from ordered log entri
 For the first entry (offset 0):
 
 ```
-chain_hash[0] = SHA-256(intent_digest[0])
+chain_hash[0] = SHA-256(intent_step_hash[0])
 ```
 
 For each subsequent entry (offset i > 0):
 
 ```
-chain_hash[i] = SHA-256(chain_hash[i-1] || intent_digest[i])
+chain_hash[i] = SHA-256(chain_hash[i-1] || intent_step_hash[i])
 ```
 
-The final `chain_hash[n]` is the value embedded as `intent_hash` in the token. Any modification, insertion, deletion, or reordering of entries changes the final hash, providing tamper evidence equivalent to the Actor Chain's cumulative commitment.
+The final `chain_hash[n]` is the value of `intc.curr` embedded in the token. Any modification, insertion, deletion, or reordering of entries changes the final hash, providing tamper evidence equivalent to the Actor Chain's cumulative commitment.
 
-## Hash Chain Commitment in Token
+## Intent Commitment Object in Token (`intc`)
 
-Only the cumulative hash chain commitment is included in the OAuth token:
+The intent chain commitment is represented as a structured object mirroring the Actor Chain's `actc` pattern. This enables incremental verification without replaying the entire chain:
 
 ```json
 {
-  "intent_hash": "sha256:abc123def456...",
+  "intc": {
+    "ctx": "intent-chain-commitment-v1",
+    "halg": "sha-256",
+    "prev": "sha256:prior_commitment...",
+    "step_hash": "sha256:latest_entry_hash...",
+    "curr": "sha256:cumulative_commitment..."
+  },
   "intent_registry": "https://intent-log.example.com"
 }
 ```
 
 | Field | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
-| `intent_hash` | string | REQUIRED | Cumulative hash chain commitment over all intent chain entries |
+| `intc` | object | REQUIRED | Intent chain commitment state |
+| `intc.ctx` | string | REQUIRED | Context identifier: `"intent-chain-commitment-v1"` |
+| `intc.halg` | string | REQUIRED | Hash algorithm used (e.g., `"sha-256"`) |
+| `intc.prev` | string | REQUIRED | Prior commitment value (`intc.curr` from previous exchange, or initial seed) |
+| `intc.step_hash` | string | REQUIRED | Hash of the latest `intent_step_sig` bytes: `b64url(Hash(intent_step_sig_bytes))` |
+| `intc.curr` | string | REQUIRED | Current cumulative commitment: `b64url(Hash(canonical({ctx, halg, prev, step_hash})))` |
 | `intent_registry` | string | REQUIRED | URI of intent registry for full chain retrieval |
 
 # Token Structure
@@ -629,7 +594,7 @@ chain entries (e.g., LLM generation followed by content filter) between its
 | Tier | Plane | Evidence | Verification | Use Case |
 | :--- | :--- | :--- | :--- | :--- |
 | **Structural** | Data Plane | `input_hash`/`output_hash` in `act` | O(1) per hop | Cross-AS content linkage |
-| **Commitment** | Data Plane | `intent_hash` (hash chain) in token | O(1) presence check | Tamper-evidence binding |
+| **Commitment** | Data Plane | `intc` (commitment object) in token | O(1) presence check | Tamper-evidence binding |
 | **Forensic** | Audit Plane | Full entries in Intent Registry | O(n) deep audit | Dispute resolution, compliance |
 
 ### Multi-AS Motivation
@@ -671,7 +636,13 @@ The complete token combines actor chain claims and intent chain claims:
     }
   },
 
-  "intent_hash": "sha256:abc123def456789...",
+  "intc": {
+    "ctx": "intent-chain-commitment-v1",
+    "halg": "sha-256",
+    "prev": "sha256:prior_commitment...",
+    "step_hash": "sha256:latest_entry...",
+    "curr": "sha256:abc123def456789..."
+  },
   "intent_registry":
     "https://intent-log.example.com/workflows/wf-uuid-12345"
 }
@@ -692,7 +663,7 @@ The complete token combines actor chain claims and intent chain claims:
 
 | Claim | Type | Description |
 | :--- | :--- | :--- |
-| `intent_hash` | string | Cumulative hash chain commitment over all intent chain entries (REQUIRED) |
+| `intc` | object | Intent chain commitment state object mirroring `actc` structure (REQUIRED) |
 | `intent_registry` | string | URI for retrieving full chain entries (REQUIRED) |
 
 ## Examples
@@ -726,7 +697,13 @@ The complete token combines actor chain claims and intent chain claims:
   "iat": 1700000000,
   "exp": 1700003600,
 
-  "intent_hash": "sha256:abc123...",
+  "intc": {
+    "ctx": "intent-chain-commitment-v1",
+    "halg": "sha-256",
+    "prev": "sha256:initial_seed...",
+    "step_hash": "sha256:entry_hash...",
+    "curr": "sha256:abc123..."
+  },
   "intent_registry":
     "https://intent-log.example.com/workflows/wf-uuid-12345"
 }
@@ -748,15 +725,15 @@ At request time, the Relying Party performs lightweight checks on the intent cha
 
 The Relying Party SHOULD:
 
-1. Verify the JWT outer signature (covers `intent_hash` as a signed claim).
-2. Check that `intent_hash` and `intent_registry` are present (policy: "intent chain coverage required").
+1. Verify the JWT outer signature (covers `intc` as a signed claim).
+2. Check that `intc` and `intent_registry` are present (policy: "intent chain coverage required").
 3. Apply policy rules against intent chain entry types fetched from the registry (e.g., "must include at least one `deterministic` entry").
 
 The tiered verification table reflects the appropriate level of intent chain checking based on risk:
 
 | Risk Level | Actor Chain | Intent Chain | Use Case |
 | :--- | :--- | :--- | :--- |
-| Low | Verify JWT signature | Check `intent_hash` present | Read operations |
+| Low | Verify JWT signature | Check `intc` present | Read operations |
 | Medium | Verify JWT signature | Async policy check on entry types | Create/update |
 | High | Verify JWT signature + actor sigs | Full forensic verification | Delete, transfer, admin |
 
@@ -765,10 +742,10 @@ The tiered verification table reflects the appropriate level of intent chain che
 Forensic verification is performed after-the-fact by an auditor or dispute resolution system.
 
 1. **Fetch Entries**: Download all intent chain entries for the given `acti` from the `intent_registry`.
-2. **Verify Signatures**: For each entry, verify the `intent_sig` using the public key associated with the `sub`. The auditor MUST cross-reference the `sub` with the corresponding actor in the Actor Chain ({{!I-D.draft-mw-spice-actor-chain}}).
+2. **Verify Signatures**: For each entry, verify the `intent_step_sig` using the public key associated with the `sub`. The auditor MUST cross-reference the `sub` with the corresponding actor in the Actor Chain ({{!I-D.draft-mw-spice-actor-chain}}).
 3. **Verify Linkage**: Confirm that for every consecutive pair of entries (E_i, E_i+1), `E_i.output_hash == E_i+1.input_hash`.
-4. **Recompute Chain Hash**: Starting from the first entry, compute the cumulative hash chain: `chain_hash[0] = SHA-256(intent_digest[0])`, then `chain_hash[i] = SHA-256(chain_hash[i-1] || intent_digest[i])` for each subsequent entry.
-5. **Compare Commitments**: Compare the final recomputed `chain_hash[n]` with the `intent_hash` claim in the presented token. If they match, the full intent chain is verified.
+4. **Recompute Chain Hash**: Starting from the first entry, compute the cumulative hash chain: `chain_hash[0] = SHA-256(intent_step_hash[0])`, then `chain_hash[i] = SHA-256(chain_hash[i-1] || intent_step_hash[i])` for each subsequent entry.
+5. **Compare Commitments**: Compare the final recomputed `chain_hash[n]` with `intc.curr` in the presented token. If they match, the full intent chain is verified.
 6. **Re-derive deterministic outputs**: For `deterministic` entries, retrieve the rule definition matching `rule_hash`, re-apply it to the content matching `input_hash`, and verify the output matches `output_hash`.
 
 ## Dispute Resolution Workflow
@@ -777,7 +754,7 @@ In the event of a dispute (e.g., "Agent A did not produce that harmful output"):
 
 1. Retrieve the archived token and full intent chain.
 2. Locate entries where `sub` matches Agent A's SPIFFE ID.
-3. Verify Agent A's `intent_sig` on each of those entries. A valid signature proves Agent A attested to producing that specific `output_hash`.
+3. Verify Agent A's `intent_step_sig` on each of those entries. A valid signature proves Agent A attested to producing that specific `output_hash`.
 4. Trace backwards via `input_hash` to find the originating cause (e.g., prompt injection from a prior agent).
 
 ## Cross-Chain Binding
@@ -789,331 +766,40 @@ For each intent chain entry of type `non_deterministic`: verify that `entry.sub`
 Full two-chain audit is RECOMMENDED for regulatory submissions, dispute resolution, and post-breach forensic analysis.
 
 
-# Policy Enforcement
+# Security Considerations
 
-## Policy Examples
-
-### Require All Outputs Filtered
-
-Every agent output must be followed by at least one filter:
-
-```
-require_filtered_outputs {
-    intent_chain := get_intent_chain(input.intent_hash)
-
-    agent_outputs := [i |
-        intent_chain[i].type == "non_deterministic"]
-
-    every i in agent_outputs {
-        # Next entry must be a filter (if not last)
-        i < count(intent_chain) - 1
-        intent_chain[i + 1].type != "non_deterministic"
-    }
-}
-```
-
-### Require Non-Deterministic Filter for AI Outputs
-
-AI agent outputs must pass through an AI guardrail:
-
-```
-require_ai_guardrail {
-    intent_chain := get_intent_chain(input.intent_hash)
-
-    every i, entry in intent_chain {
-        entry.type == "non_deterministic" implies {
-            # Must be followed by an entry with AI guardrail model
-            some j
-            j > i
-            intent_chain[j].model_info.model ==
-                "llama-guard-3"
-        }
-    }
-}
-```
-
-### Verify Specific Transformation Applied
-
-Sensitive fields must be sanitized:
-
-```
-require_pii_redaction {
-    intent_chain := get_intent_chain(input.intent_hash)
-
-    some i
-    intent_chain[i].type == "deterministic"
-    intent_chain[i].rule_id == "pii-redaction-v1"
-}
-```
-
-## Integration with Policy Engines
-
-The intent chain claims are designed for consumption by policy engines such as Open Policy Agent (OPA). A policy engine SHOULD:
-
-1. Validate token expiry and revocation status.
-2. Verify actor chain integrity using nested `act` and `actp` (per {{!I-D.draft-mw-spice-actor-chain}}).
-3. Verify `intent_hash` and `intent_registry` are present and non-empty.
-4. Evaluate deployment-specific requirements against the intent chain entries (e.g., requiring filtered outputs, specific guardrail models, or PII redaction).
-
-# Threat Model and Security Considerations
-
-The Intent Chain specifically addresses **Tampering** and **Repudiation** in
-AI agent workflows. Use of this specification assumes a baseline security
-posture (e.g., protected endpoints, secure key storage).
+The intent chain addresses **Tampering** and **Repudiation** in AI agent workflows.
 
 ## STRIDE Threat Analysis
 
 | Threat | Attack Scenario | Mitigation |
 | :--- | :--- | :--- |
-| **S - Spoofing** | Adversary injects entries as a legitimate agent. | Non-deterministic entries MUST be signed by the agent's private key (`intent_sig`). |
-| **T - Tampering** | Malicious registry reorders or deletes entries. | The `intent_hash` in the token binds the expected registry state. Any modification breaks the hash chain. |
-| **R - Repudiation** | Agent A claims it never produced harmful content. | Agent A's signature over its `output_hash` provides proof of production. |
-| **I - Information Disclosure** | Registry or infrastructure learns sensitive content. | **Privacy-First**: Raw content never leaves the actor; only hashes are stored or transmitted. |
-| **D - Denial of Service** | Registry is flooded with entries. | Registry operators SHOULD implement rate limits and retention policies tied to `exp`. |
-| **E - Elevation of Privilege** | Agent bypassing filters. | All content MUST have an `input_hash` matching the prior `output_hash`. Unlinked entries denote an unauthorized path. |
+| **Spoofing** | Adversary injects entries as a legitimate agent | Non-deterministic entries MUST be signed (`intent_step_sig`) |
+| **Tampering** | Registry reorders or deletes entries | `intc` commitment in token binds expected registry state |
+| **Repudiation** | Agent claims it never produced harmful content | Agent's signature over `output_hash` proves production |
+| **Info Disclosure** | Infrastructure learns sensitive content | Raw content never leaves actor; only hashes stored |
+| **DoS** | Registry flooded with entries | Rate limits and retention policies |
+| **Elevation of Privilege** | Agent bypasses filters | `input_hash` linkage detects unauthorized paths |
 
 ## Privacy Considerations
 
-The Intent Chain implements a "Zero-Knowledge" approach to infrastructure:
+All hashing happens locally before content leaves the agent's boundary. Verification depends on public keys from the Actor Chain; infrastructure does not need agent keys. The `content_envelope` (when present) is encrypted at rest and accessible only to authorized auditors.
 
-1. **Actor Local Hashing**: All hashing happens on the original content
-   *before* it leaves the agent's secure boundary.
-2. **No Central Secrets**: Verification depends on public keys already present
-   in the Actor Chain. Infrastructure (AS/Registry) does not need access to
-   agent keys.
-3. **Selective Disclosure**: Using SD-JWT mechanisms at the registry API
-   layer, an auditor can retrieve specific entries (e.g., that Filter X
-   processed the input) without requiring full chain disclosure.
+## Registry Trust
 
-## Hash-Only Verification Benefits
-
-The intent chain stores only cryptographic hashes of content, never raw content
-itself. This design provides different levels of assurance depending on whether
-the verifier has access to the original content:
-
-### Verifiable Without Content (Hash-Only Evidence)
-
-The following properties are verifiable using only the hash chain and signed
-entries, without access to raw content:
-
-- **Chain Integrity**: The hash chain commitment in the token matches the 
-  reconstructed chain from registry entries.
-- **Non-Repudiation**: Each agent's `intent_sig` proves it participated and
-  attested to specific hashes at a specific time.
-- **Ordering**: The sequential hash chain proves entry ordering.
-- **Completeness**: Missing or reordered entries break the hash chain.
-- **Filter Presence**: Policy can verify that required filter types
-  (deterministic, non-deterministic) exist in the chain.
-- **Cross-Hop Linkage**: `act[i].output_hash == act[i+1].input_hash`
-  proves content continuity across actor boundaries.
-
-### Requires Content (Dispute Resolution)
-
-Substantive proof of _what_ was said or generated requires the raw content to
-be produced on demand during disputes:
-
-- **Content Verification**: Hash the provided raw content and compare against
-  the signed `input_hash`/`output_hash` to prove what was actually processed.
-- **Deterministic Re-Derivation**: Re-apply the rule matching `rule_hash` to
-  content matching `input_hash` and verify the output matches `output_hash`.
-
-This two-tier model is analogous to a sealed evidence chain-of-custody in legal
-proceedings: the chain itself is verifiable at any time, but the sealed evidence
-is opened only when needed for dispute resolution. The deterrence value of
-non-repudiable, tamper-evident chains is significant even without routine
-content inspection.
-
-## Registry Hosting and Trust
-
-The Registry SHOULD be treated as a semi-trusted append-only log. It does not
-need to be trusted for content secrecy (due to hashing) but MUST be trusted for
-availability. In federated environments, each domain MAY host its own registry,
-with `intent_registry` URIs pointing to the authoritative log for a given hop.
+The registry is semi-trusted: not trusted for content secrecy (due to hashing) but MUST be trusted for availability. Registry unavailability does not affect data-plane operation — the token's `intc` commitment suffices for request-time policy. Forensic verification is deferred to the audit plane.
 
 # Implementation Guidance
 
-## Intent Registry Implementation
+The intent registry stores immutable intent chain entries as an append-only log, partitioned by `acti`. A federated IAM/IdM platform MAY host the intent registry alongside the Actor Chain Registry — see {{!I-D.draft-mw-spice-actor-chain}} Section "Registry Hosting" for requirements.
 
-The intent registry stores immutable intent chain entries. Recommended properties:
+In multi-AS deployments, each AS appends entries under the workflow's `acti` partition. The hash chain commitment is recomputed at each token exchange over all entries accumulated so far; `intc.curr` therefore grows at each hop. When ASes do not share a registry, inline `input_hash`/`output_hash` in `act` claims provide a self-contained **Federated TTP Chain** for cross-domain content verification.
 
-- Append-only log structure
-- Partitioned by `acti` for isolation
-- Configurable retention period
-- Hash chain commitment computation triggered on append or at token exchange time
-
-A federated IAM/IdM platform (e.g., Keycloak, Microsoft Entra, Okta, PingFederate) MAY host the intent registry alongside the Actor Chain Registry ({{!I-D.draft-mw-spice-actor-chain}}), since the Authorization Server already mediates token exchanges and can append intent chain entries as a side-effect. Most enterprise IAM/IdM platforms support configurable data stores that can be configured for append-only semantics — see {{!I-D.draft-mw-spice-actor-chain}} Section "Registry Hosting" for detailed requirements.
-
-## Multi-AS Deployments
-
-Multi-AS deployments are the **primary enterprise pattern**, not an edge case.
-Large organizations routinely operate multiple Authorization Servers due to:
-
-- **Mergers & Acquisitions**: Inherited identity infrastructure from acquired companies.
-- **Business Unit Autonomy**: Separate security domains per division, product line, or geography.
-- **Multi-Cloud**: Different cloud providers with native identity services (e.g., Azure Entra + AWS IAM Identity Center).
-- **Regulatory Segmentation**: Data sovereignty requirements that mandate separate authorization infrastructure per jurisdiction.
-
-In such deployments, the intent registry may be shared across all participating ASes, or each AS may maintain its own registry partition. Each AS appends intent chain entries to the same `acti`-partitioned registry, identified by the `acti` claim carried in the token. This works without coordination between ASes because:
-
-- The `acti` value is established at workflow initiation and carried forward unchanged through all token exchanges.
-- Each AS appends entries atomically under the workflow's `acti` partition.
-- The hash chain commitment is recomputed at each token exchange time over all entries accumulated so far (by any AS).
-- The resulting `intent_hash` in the token therefore differs at each hop — each successive AS produces a larger hash chain commitment reflecting the growing chain. This is expected behavior: a growing commitment is the normal consequence of an append-only chain and indicates that additional intent entries have been recorded.
-
-### Federated TTP Chain Pattern
-
-When ASes do not share a common Intent Registry, the inline `input_hash` and
-`output_hash` in the `act` claim (see Section "Intent Evidence in Actor Chain
-Claims") provide a self-contained mechanism for verifying content integrity
-across trust boundaries. Each AS acts as a local **Trusted Third Party (TTP)**,
-attesting to the content boundaries of the delegation it mediates:
-
-1. AS-A validates the incoming token and the actor's content hashes.
-2. AS-A signs a new token embedding the actor's `input_hash`/`output_hash`
-   in the `act` claim.
-3. When the token crosses to AS-B's domain, AS-B can verify the content
-   linkage using only the `act` claims — no access to AS-A's registry required.
-
-This **Federated TTP Chain** enables cross-domain content provenance tracking
-without requiring ASes to share keys, registries, or coordinate directly. The
-`acti` partition, append-only log semantics, and inline act hashes provide the
-necessary consistency and verifiability.
-
-## Scalability Considerations
-
-- **Log Partitioning**: `acti`-based partitioning ensures that intent chains for different workflow instances are isolated and can be processed in parallel.
-- **Hash Chain Caching**: Computed hash chain commitments SHOULD be cached to avoid recomputation on every token exchange.
-- **Incremental Updates**: Because the hash chain is sequential, appending a new entry requires only one additional SHA-256 computation: `chain_hash[n+1] = SHA-256(chain_hash[n] || intent_digest[n+1])`.
-
-## Operational Recommendations
-
-- **Retention Policy**: Intent chain logs SHOULD be retained for the maximum audit window required by the deployment's regulatory environment.
-- **Monitoring**: Operators SHOULD monitor intent chain append latency and hash chain computation time.
-- **Backup**: Intent chain logs SHOULD be replicated across availability zones for durability.
-
-## Registry Availability
-
-Intent registry unavailability does not affect data-plane operation — the token's AS-signed `intent_hash` is sufficient for request-time policy decisions (e.g., "intent chain coverage required"). Per-entry forensic verification is deferred to the audit plane and is not required on the hot path.
-
-However, if the registry is permanently lost, forensic verification becomes impossible. Deployments SHOULD:
-
-- Replicate intent registry entries across availability zones.
-- Use append-only log services designed for high durability (e.g., SCITT transparency logs).
-- Retain archived tokens (containing `intent_hash`) separately from intent chain entries, so that hash chain commitments survive independently of the registry.
-- Define a fail-mode policy: **fail-closed** (reject tokens whose intent chains cannot be verified) for high-risk operations, or **fail-open** (accept the AS-signed token and log the verification gap) for low-risk operations.
+Deployments SHOULD replicate intent chain entries across availability zones, cache computed hash chain commitments, and define fail-mode policy (fail-closed for high-risk, fail-open for low-risk operations).
 
 
 
-# Appendix B: Operational Flows
 
-## Intent Chain Construction
-
-```
-  Agent A        Filter        Agent B       Intent
-                                             Registry
-     |               |               |           |
-     | Produce       |               |           |
-     | output        |               |           |
-     |---------------+---------------+---------->|
-     |               |               |  Append   |
-     |               |               | non-det   |
-     |               |               |   entry   |
-     |               |               |           |
-     | Send to       |               |           |
-     | filter        |               |           |
-     |-------------->|               |           |
-     |               |               |           |
-     |               | Transform     |           |
-     |               | content       |           |
-     |               |---------------+---------->|
-     |               |               |  Append   |
-     |               |               | filter    |
-     |               |               |   entry   |
-     |               |               |           |
-     |               | Send to       |           |
-     |               | Agent B       |           |
-     |               |-------------->|           |
-     |               |               |           |
-     |               |               | Produce   |
-     |               |               | output    |
-     |               |               |---------->|
-     |               |               |  Append   |
-     |               |               | non-det   |
-     |               |               |   entry   |
-     |               |               |           |
-```
-
-## Token Exchange Integration
-
-```
-  Agent B          AS          Intent      Actor
-                               Registry    Registry
-     |               |            |            |
-     | Token         |            |            |
-     | Exchange      |            |            |
-     | Request       |            |            |
-     |-------------->|            |            |
-     |               |            |            |
-     |               | Validate   |            |
-     |               | existing   |            |
-     |               | act chain  |            |
-     |               |            |            |
-     |               | Extend     |            |
-     |               | act chain  |            |
-     |               |------------+----------->|
-     |               |            |   Store    |
-     |               |            | capability |
-     |               |            |            |
-     |               | Compute    |            |
-     |               | intent_hash|            |
-     |               |---------->|            |
-     |               | Get hash  |            |
-     |               | chain     |            |
-     |               |<-----------|            |
-     |               |            |            |
-     | New token     |            |            |
-     | with both     |            |            |
-     | chains        |            |            |
-     |<--------------|            |            |
-     |               |            |            |
-```
-
-## Request-Time Check at Relying Party
-
-```
-  Agent C       Relying       Intent      Actor
-                 Party        Registry    Registry
-     |               |            |            |
-     | Request +     |            |            |
-     | Token         |            |            |
-     |-------------->|            |            |
-     |               |            |            |
-     |               | Verify JWT |            |
-     |               | signature  |            |
-     |               |            |            |
-     |               | Verify     |            |
-     |               | act chain  |            |
-     |               | (per actp) |            |
-     |               |            |            |
-     |               | Check      |            |
-     |               | intent_hash|            |
-     |               | present    |            |
-     |               |            |            |
-     |               | Apply      |            |
-     |               | policy on  |            |
-     |               | entry types|            |
-     |               |----------->|            |
-     |               | Fetch entry|            |
-     |               | types only |            |
-     |               |<-----------|            |
-     |               |            |            |
-     |               | Policy OK: |            |
-     |               | Execute    |            |
-     |               |            |            |
-     | Response      |            |            |
-     |<--------------|            |            |
-     |               |            |            |
-```
 
 # IANA Considerations
 
@@ -1121,8 +807,8 @@ However, if the registry is permanently lost, forensic verification becomes impo
 
 This document requests registration of the following claims in the "JSON Web Token Claims" registry established by {{!RFC7519}}:
 
-- **Claim Name**: `intent_hash`
-- **Claim Description**: Cumulative hash chain commitment over all intent chain entries for content provenance verification.
+- **Claim Name**: `intc`
+- **Claim Description**: Intent chain commitment state object containing cumulative hash chain commitment for content provenance verification.
 - **Change Controller**: IETF
 - **Specification Document(s)**: [this document]
 
@@ -1131,19 +817,14 @@ This document requests registration of the following claims in the "JSON Web Tok
 - **Change Controller**: IETF
 - **Specification Document(s)**: [this document]
 
-- **Claim Name**: `intent_registry`
-- **Claim Description**: URI of the intent registry for proof retrieval.
-- **Change Controller**: IETF
-- **Specification Document(s)**: [this document]
-
 ## CWT Claim Registration
 
 This document requests registration of the following claims in the "CBOR Web Token (CWT) Claims" registry established by {{!RFC8392}}:
 
-- **Claim Name**: `intent_hash`
-- **Claim Description**: Cumulative hash chain commitment over all intent chain entries.
+- **Claim Name**: `intc`
+- **Claim Description**: Intent chain commitment state object containing cumulative hash chain commitment.
 - **CBOR Key**: TBD (e.g., 50)
-- **Claim Type**: tstr
+- **Claim Type**: map
 - **Change Controller**: IETF
 - **Specification Document(s)**: [this document]
 
@@ -1159,300 +840,4 @@ This document requests registration of the following claims in the "CBOR Web Tok
 The authors would like to thank the participants of the IETF SPICE Working
 Group for their valuable feedback and contributions to this specification.
 
-# Appendix B: Operational Flows
 
-## Intent Chain Construction
-
-```
-  Agent A        Filter        Agent B       Intent
-                                             Registry
-     |               |               |           |
-     | Produce       |               |           |
-     | output        |               |           |
-     |---------------+---------------+---------->|
-     |               |               |  Append   |
-     |               |               | non-det   |
-     |               |               |   entry   |
-     |               |               |           |
-     | Send to       |               |           |
-     | filter        |               |           |
-     |-------------->|               |           |
-     |               |               |           |
-     |               | Transform     |           |
-     |               | content       |           |
-     |               |---------------+---------->|
-     |               |               |  Append   |
-     |               |               | filter    |
-     |               |               |   entry   |
-     |               |               |           |
-     |               | Send to       |           |
-     |               | Agent B       |           |
-     |               |-------------->|           |
-     |               |               |           |
-     |               |               | Produce   |
-     |               |               | output    |
-     |               |               |---------->|
-     |               |               |  Append   |
-     |               |               | non-det   |
-     |               |               |   entry   |
-     |               |               |           |
-```
-
-## Token Exchange Integration
-
-```
-  Agent B          AS          Intent      Actor
-                               Registry    Registry
-     |               |            |            |
-     | Token         |            |            |
-     | Exchange      |            |            |
-     | Request       |            |            |
-     |-------------->|            |            |
-     |               |            |            |
-     |               | Validate   |            |
-     |               | existing   |            |
-     |               | act chain  |            |
-     |               |            |            |
-     |               | Extend     |            |
-     |               | act chain  |            |
-     |               |------------+----------->|
-     |               |            |   Store    |
-     |               |            | capability |
-     |               |            |            |
-     |               | Compute    |            |
-     |               | intent_hash|            |
-     |               |---------->|            |
-     |               | Get hash  |            |
-     |               | chain     |            |
-     |               |<-----------|            |
-     |               |            |            |
-     | New token     |            |            |
-     | with both     |            |            |
-     | chains        |            |            |
-     |<--------------|            |            |
-     |               |            |            |
-```
-
-## Request-Time Check at Relying Party
-
-```
-  Agent C       Relying       Intent      Actor
-                 Party        Registry    Registry
-     |               |            |            |
-     | Request +     |            |            |
-     | Token         |            |            |
-     |-------------->|            |            |
-     |               |            |            |
-     |               | Verify JWT |            |
-     |               | signature  |            |
-     |               |            |            |
-     |               | Verify     |            |
-     |               | act chain  |            |
-     |               | (per actp) |            |
-     |               |            |            |
-     |               | Check      |            |
-     |               | intent_hash|            |
-     |               | present    |            |
-     |               |            |            |
-     |               | Apply      |            |
-     |               | policy on  |            |
-     |               | entry types|            |
-     |               |----------->|            |
-     |               | Fetch entry|            |
-     |               | types only |            |
-     |               |<-----------|            |
-     |               |            |            |
-     |               | Policy OK: |            |
-     |               | Execute    |            |
-     |               |            |            |
-     | Response      |            |            |
-     |<--------------|            |            |
-     |               |            |            |
-```
-
-
-
-# Hash Chain Construction Details
-
-## Chain Structure
-
-```
-  Entry0    Entry1    Entry2    Entry3    Entry4    Entry5
-  (non-det) (non-det) (det)     (non-det) (det)     (non-det)
-    |         |         |         |         |         |
-    v         v         v         v         v         v
-  digest0   digest1   digest2   digest3   digest4   digest5
-    |         |         |         |         |         |
-    v         |         |         |         |         |
-  H(d0) -----+         |         |         |         |
-    = ch[0]   |         |         |         |         |
-              v         |         |         |         |
-        H(ch[0]||d1) ---+         |         |         |
-           = ch[1]      |         |         |         |
-                        v         |         |         |
-              H(ch[1]||d2) -------+         |         |
-                 = ch[2]          |         |         |
-                                  v         |         |
-                        H(ch[2]||d3) -------+         |
-                           = ch[3]          |         |
-                                            v         |
-                                  H(ch[3]||d4) -------+
-                                     = ch[4]          |
-                                                      v
-                                            H(ch[4]||d5)
-                                               = ch[5]
-                                                  |
-                                                  v
-                                          intent_hash (in JWT)
-```
-
-## Reference Construction Algorithm
-
-```python
-def compute_intent_hash(entries):
-    if len(entries) == 0:
-        return None
-
-    # Compute entry digests
-    digests = [sha256(canonical_json(entry))
-               for entry in entries]
-
-    # Build sequential hash chain
-    chain_hash = sha256(digests[0])
-    for i in range(1, len(digests)):
-        chain_hash = sha256(chain_hash + digests[i])
-
-    return chain_hash
-```
-
-# Complete Token Examples
-
-## Full Governance Token
-
-The following example shows a complete token with actor chain and intent chain:
-
-```json
-{
-  "iss": "https://auth.example.com",
-  "sub": "user-alice",
-  "aud": "https://api.example.com",
-  "jti": "tok-ddd-67890",
-  "iat": 1700000000,
-  "exp": 1700003600,
-  "actp": "declared-full",
-  "acti": "wf-uuid-12345",
-
-  "act": {
-    "iss": "https://auth.example.com",
-    "sub": "spiffe://example.com/agent/support",
-    "act": {
-      "iss": "https://auth.example.com",
-      "sub": "spiffe://example.com/agent/orchestrator"
-    }
-  },
-
-  "intent_hash": "sha256:abc123def456789...",
-  "intent_registry":
-    "https://intent-log.example.com/workflows/wf-uuid-12345"
-}
-```
-
-## Corresponding Intent Chain Log Entries
-
-The following entries would be stored in the intent registry for the above token:
-
-```json
-[
-  {
-    "offset": 0,
-    "entry": {
-      "type": "non_deterministic",
-      "sub":
-        "spiffe://example.com/agent/orchestrator",
-      "input_hash": "sha256:prompt...",
-      "output_hash": "sha256:abc...",
-      "iat": 1700000010,
-      "intent_digest": "sha256:leaf0...",
-      "intent_sig": "eyJ..."
-    }
-  },
-  {
-    "offset": 1,
-    "entry": {
-      "type": "non_deterministic",
-      "sub":
-        "spiffe://example.com/filter/ai-guardrail",
-      "filter_version": "v2.1",
-      "input_hash": "sha256:abc...",
-      "output_hash": "sha256:def...",
-      "model_info": {
-        "model": "llama-guard-3",
-        "categories": ["violence", "pii"]
-      },
-      "iat": 1700000012,
-      "intent_digest": "sha256:leaf1...",
-      "intent_sig": "eyJ..."
-    }
-  },
-  {
-    "offset": 2,
-    "entry": {
-      "type": "deterministic",
-      "sub":
-        "spiffe://example.com/filter/schema-validator",
-      "filter_version": "v1.0",
-      "input_hash": "sha256:def...",
-      "output_hash": "sha256:ghi...",
-      "rule_id": "ticket-schema-v2",
-      "rule_hash": "sha256:rrr...",
-      "reproducible": true,
-      "iat": 1700000013,
-      "intent_digest": "sha256:leaf2...",
-      "intent_sig": "eyJ..."
-    }
-  },
-  {
-    "offset": 3,
-    "entry": {
-      "type": "non_deterministic",
-      "sub":
-        "spiffe://example.com/agent/support",
-      "input_hash": "sha256:ghi...",
-      "output_hash": "sha256:jkl...",
-      "iat": 1700000030,
-      "intent_digest": "sha256:leaf3...",
-      "intent_sig": "eyJ..."
-    }
-  },
-  {
-    "offset": 4,
-    "entry": {
-      "type": "deterministic",
-      "sub":
-        "spiffe://example.com/filter/pii-redactor",
-      "filter_version": "v1.2",
-      "input_hash": "sha256:jkl...",
-      "output_hash": "sha256:mno...",
-      "rule_id": "pii-redaction-v1",
-      "rule_hash": "sha256:ppp...",
-      "reproducible": true,
-      "iat": 1700000031,
-      "intent_digest": "sha256:leaf4...",
-      "intent_sig": "eyJ..."
-    }
-  },
-  {
-    "offset": 5,
-    "entry": {
-      "type": "non_deterministic",
-      "sub":
-        "spiffe://example.com/agent/tool-executor",
-      "input_hash": "sha256:mno...",
-      "output_hash": "sha256:pqr...",
-      "iat": 1700000050,
-      "intent_digest": "sha256:leaf5...",
-      "intent_sig": "eyJ..."
-    }
-  }
-]
-```
